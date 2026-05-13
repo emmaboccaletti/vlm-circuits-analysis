@@ -1,3 +1,4 @@
+# File name: script_node_circuit_discovery_and_eval.py
 # Hack to avoid some import problem due to the library being a subfolder
 import sys
 import torch
@@ -9,6 +10,7 @@ from typing import List
 try:
     sys.path.append("third_party/TransformerLens")
     import transformer_lens as lens  # Some python problem causes this to throw on the first import
+    print("The third_partyTransformerLens imported successfully on first try")
 except:
     import transformer_lens as lens
 
@@ -168,13 +170,22 @@ def main():
 
     # Load model
     logging.info(f"Loading model {args.model_name} from {args.model_path}")
+    # model, processor = load_model(
+    #     args.model_name,
+    #     args.model_path,
+    #     device,
+    #     use_tlens_wrapper=True,
+    #     extra_hooks=True,
+    #     torch_dtype=torch.float32,
+    # )
+    # EMMA CHANGE: Tried changing from float32 to bfloat16 because model config says it should be in bfloat16
     model, processor = load_model(
         args.model_name,
         args.model_path,
         device,
         use_tlens_wrapper=True,
         extra_hooks=True,
-        torch_dtype=torch.float32,
+        torch_dtype=torch.bfloat16,
     )
     logging.info("Model loaded")
 

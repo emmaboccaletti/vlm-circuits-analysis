@@ -1,3 +1,4 @@
+# File name: script_backpatching_experiment.py
 # Hack to avoid some import problem due to the library being a subfolder
 import torch
 import argparse
@@ -365,13 +366,22 @@ def main():
 
     # Load model
     logging.info(f"Loading model {args.model_name} from {args.model_path}")
+    # model, processor = load_model(
+    #     args.model_name,
+    #     args.model_path,
+    #     device,
+    #     use_tlens_wrapper=True,
+    #     extra_hooks=True,
+    #     torch_dtype=torch.float32,
+    # )
+    # EMMA CHANGE: Don't use torch.float32, instead use bfloat16 for all models
     model, processor = load_model(
         args.model_name,
         args.model_path,
         device,
         use_tlens_wrapper=True,
         extra_hooks=True,
-        torch_dtype=torch.float32,
+        torch_dtype=torch.bfloat16,
     )
     logging.info("Model loaded")
 

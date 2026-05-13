@@ -1,3 +1,4 @@
+# file name: generate_counting_images.py
 import sys
 import os
 import torch
@@ -9,7 +10,10 @@ from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion import (
     StableDiffusionSafetyChecker,
 )
 
-sys.path.append("./third_party/TransformerLens")
+# sys.path.append("./third_party/TransformerLens")
+REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+sys.path.append(REPO_ROOT)
+sys.path.append(os.path.join(REPO_ROOT, "third_party", "TransformerLens"))
 try:
     import transformer_lens as lens  # Some python problem causes this to throw on the first import
 except:
@@ -66,6 +70,7 @@ def generate(
             print("Saving batch")
             for image, image_path in images_and_paths:
                 image_path_with_seed = image_path.replace(".png", f"_seed_{seed}.png")
+                image_path_with_seed = image_path_with_seed.replace(f"_seed_{seed}_seed_{seed}.png", f"_seed_{seed}.png")
                 image.save(image_path_with_seed)
 
     return images_and_paths
@@ -177,7 +182,8 @@ def main():
             sd_model_name, use_auth_token=hf_token
         ).to(device)
 
-    output_dir = f"./data/counting/images/{args.prompt_template_idx + 1}"
+    # output_dir = f"./data/counting/images/{args.prompt_template_idx + 1}"
+    output_dir = f"./data/counting/raw_images/{args.prompt_template_idx + 1}"
     os.makedirs(output_dir, exist_ok=True)
 
     prompts = create_mixed_counting_prompts(args.prompt_template_idx)

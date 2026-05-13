@@ -10,7 +10,12 @@ from typing import List, Optional
 from PIL import Image
 from vision_language_prompts import VLPrompt
 
-sys.path.append("./third_party/TransformerLens")
+# sys.path.append("./third_party/TransformerLens")
+from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parent
+sys.path.append(str(REPO_ROOT / "third_party" / "TransformerLens"))
+print(f'System path: {str(REPO_ROOT / "third_party" / "TransformerLens")}')
 import transformer_lens as lens
 from general_utils import (
     get_content_key_for_prompt_dict,

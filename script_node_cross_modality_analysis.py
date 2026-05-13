@@ -1,3 +1,4 @@
+# File name: script_node_cross_modality_analysis.py
 # Hack to avoid some import problem due to the library being a subfolder
 import random
 import sys
@@ -460,15 +461,25 @@ def main():
 
     # Load model
     logging.info(f"Loading model {args.model_name} from {args.model_path}")
+    # model, processor = load_model(
+    #     args.model_name,
+    #     args.model_path,
+    #     device,
+    #     use_tlens_wrapper=True,
+    #     extra_hooks=True,
+    #     torch_dtype=torch.float32,
+    # )
+    # EMMA CHANGE: Tried changing from float32 to bfloat16 because model config says it should be in bfloat16
     model, processor = load_model(
         args.model_name,
         args.model_path,
         device,
         use_tlens_wrapper=True,
         extra_hooks=True,
-        torch_dtype=torch.float32,
+        torch_dtype=torch.bfloat16,
     )
     logging.info("Model loaded")
+    # print(f"Model loaded, with device: {model.device}")
 
     # Load L and VL datasets
     logging.info(f"Loading dataset for task {args.task_name}")

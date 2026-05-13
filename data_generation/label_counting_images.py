@@ -1,3 +1,4 @@
+# file name: label_counting_images.py
 import sys
 import os
 import re
@@ -8,7 +9,10 @@ import openai
 import argparse
 from tqdm import tqdm
 
-sys.path.append("./third_party/TransformerLens")
+# sys.path.append("./third_party/TransformerLens")
+REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+sys.path.append(REPO_ROOT)
+sys.path.append(os.path.join(REPO_ROOT, "third_party", "TransformerLens"))
 try:
     import transformer_lens as lens
 except ImportError:

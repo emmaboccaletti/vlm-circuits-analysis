@@ -79,6 +79,8 @@ def set_cuda_device(device_idx):
 
 
 def get_image_size_for_model(model_name):
+    # Added by Emma: ensure name is lowercase for easier matching
+    model_name = model_name.lower()
     if "pixtral" in model_name:
         return (252, 252)
     elif "qwen" in model_name:
@@ -111,6 +113,7 @@ def get_gpu_count():
 
         # Count the number of GPU lines
         gpu_count = len(lines)
+        print(f"Detected {gpu_count} GPUs.") # EMMA ADDED
 
         return gpu_count
     except (subprocess.CalledProcessError, ValueError):

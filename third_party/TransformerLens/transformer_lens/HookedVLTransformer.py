@@ -15,7 +15,10 @@ from typing import (
 
 import einops
 import numpy as np
-from third_party.TransformerLens.transformer_lens.components.transformer_cross_block import (
+# from third_party.TransformerLens.transformer_lens.components.transformer_cross_block import (
+#     TransformerCrossBlock,
+# )
+from .components.transformer_cross_block import (
     TransformerCrossBlock,
 )
 import torch
