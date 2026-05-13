@@ -1,4 +1,4 @@
-#
+# file name: analysis_utils.py
 # Contains various functions used across analysis scripts (such as model loading, dataset loading, etc)
 #
 
@@ -65,8 +65,8 @@ SUPPORTED_TASKS = [
     "counting",
     "arithmetic",
     "color_ordering",
-    "factual_recall",
     "sentiment_analysis",
+    "factual_recall",
 ]
 
 
@@ -82,7 +82,8 @@ def load_model(
         inner_model = MllamaForConditionalGeneration.from_pretrained(
             model_path,
             torch_dtype=torch_dtype,
-            device_map="cpu",
+            # device_map="cpu", trying to change it to auto
+            device_map="auto",
         )
         processor = AutoProcessor.from_pretrained(model_path, device=device)
         if use_tlens_wrapper:
@@ -110,6 +111,8 @@ def load_model(
             model_path,
             torch_dtype=torch_dtype,
             device_map="cpu",
+            # Tried to change it to auto but it seems to cause some issues when running the cross-modality analysis, need to investigate further
+            # device_map="auto",
         )
         processor = AutoProcessor.from_pretrained(model_path)
         if use_tlens_wrapper:
@@ -125,6 +128,18 @@ def load_model(
                 n_devices=get_gpu_count(),
                 device=device,
             )
+            # EMMA CHANGE: Tried changing fold_ln to False and center_writing_weights to False because of node cross-modality results, need to investigate further
+            # model = lens.HookedVLTransformer.from_pretrained(
+            #     model_name=model_name,
+            #     hf_model=inner_model,
+            #     processor=processor,
+            #     fold_ln=False, #True
+            #     center_unembed=True,
+            #     center_writing_weights=False,  # True,
+            #     fold_value_biases=False,
+            #     n_devices=get_gpu_count(),
+            #     device=device,
+            # )
             model.cfg.default_prepend_bos = False  # To match HF Qwen model forward pass
             model.set_use_split_qkv_input(extra_hooks)
             model.set_use_attn_result(extra_hooks)
@@ -139,7 +154,8 @@ def load_model(
         inner_model = LlavaForConditionalGeneration.from_pretrained(
             model_path,
             torch_dtype=torch_dtype,
-            device_map="cpu",
+            # device_map="cpu", trying to change it to auto
+            device_map="auto",
         )
         processor = AutoProcessor.from_pretrained(model_path, use_fast=False)
         if use_tlens_wrapper:
@@ -169,14 +185,17 @@ def load_model(
         return model, processor
 
     elif "gemma-3" in model_name.lower():
+        print("using gemma3 when loading model")
         inner_model = Gemma3ForConditionalGeneration.from_pretrained(
             model_path,
             torch_dtype=torch_dtype,
-            device_map="cpu",
+            # device_map="cpu", trying to change it to auto
+            device_map="auto",
         )
         processor = AutoProcessor.from_pretrained(model_path)
         # processor.chat_template = processor.chat_template.replace("{{ bos_token }}", "")
         if use_tlens_wrapper:
+            print("entering the use_tlens_wrapper block for gemma3")
             inner_model.vision_model = inner_model.vision_tower
             model = lens.HookedVLTransformer.from_pretrained(
                 model_name=model_name,
@@ -201,7 +220,8 @@ def load_model(
 
     else:
         print("WARNING: Using model not officially supported in load_model")
-        inner_model = AutoModelForCausalLM.from_pretrained(model_path, device_map="cpu")
+        # inner_model = AutoModelForCausalLM.from_pretrained(model_path, device_map="cpu"), trying to change it to auto
+        inner_model = AutoModelForCausalLM.from_pretrained(model_path, device_map="auto")
         tokenizer = AutoTokenizer.from_pretrained(model_path)
         if use_tlens_wrapper:
             model = lens.HookedTransformer.from_pretrained(
@@ -252,7 +272,9 @@ def load_dataset(
             a list of discovery prompts, and a list of evaluation prompts.
     """
     # Create / Load the base dataset
-    data_path = f"./data/{task_name}/{model_name}_{'textual' if language_only else 'visual'}_data.csv"
+    model_name_fs = model_name.replace("/", "__")
+    data_path = f"./data/{task_name}/{model_name_fs}_{'textual' if language_only else 'visual'}_data.csv"
+    print(f"This is the data I am using: {data_path}")
 
     if task_name.lower() == "counting":
         is_model_acc_low = any([n in model_name.lower() for n in ["llava", "pixtral"]])
@@ -275,7 +297,7 @@ def load_dataset(
                 processor=processor,
                 correct_preds_only=correct_preds_only,
                 measure_acc_across_limited_labels=is_model_acc_low,
-                image_size=get_image_size_for_model(model_name),
+                image_size=get_image_size_for_model(model_name.lower()),
             )
 
     elif task_name.lower() == "color_ordering":
@@ -288,7 +310,7 @@ def load_dataset(
                 processor,
                 correct_preds_only=correct_preds_only,
                 measure_acc_across_limited_labels=True,
-                prompts_per_scene=2 if "pixtral" in model_name else 1,
+                prompts_per_scene=2 if "pixtral" in model_name.lower() else 1,
                 random_seed=seed,
             )
         else:
@@ -298,13 +320,13 @@ def load_dataset(
                 processor,
                 correct_preds_only=correct_preds_only,
                 measure_acc_across_limited_labels=True,
-                prompts_per_scene=2 if "pixtral" in model_name else 1,
-                image_size=get_image_size_for_model(model_name),
+                prompts_per_scene=2 if "pixtral" in model_name.lower() else 1,
+                image_size=get_image_size_for_model(model_name.lower()),
                 random_seed=seed,
             )
 
     elif task_name.lower() == "arithmetic":
-        total_prompt_count = 210 if "pixtral" in model_name else 250
+        total_prompt_count = 210 if "pixtral" in model_name.lower() else 250
         possible_answers = get_arithmetic_limited_labels()
         if language_only:
             vl_prompts = load_arithmetic_l_prompts_list(
@@ -326,6 +348,7 @@ def load_dataset(
             )
 
     elif task_name.lower() == "sentiment_analysis":
+        model_name = model_name.lower()
         if "qwen" in model_name:
             total_prompt_count = 220
         elif "pixtral" in model_name:
@@ -350,7 +373,7 @@ def load_dataset(
                 processor=processor,
                 correct_preds_only=correct_preds_only,
                 measure_acc_across_limited_labels=True,
-                image_size=get_image_size_for_model(model_name),
+                image_size=get_image_size_for_model(model_name.lower()),
             )
     elif task_name.lower() == "factual_recall":
         total_prompt_count = 250
@@ -371,7 +394,7 @@ def load_dataset(
                 processor=processor,
                 correct_preds_only=correct_preds_only,
                 measure_acc_across_limited_labels=True,
-                image_size=get_image_size_for_model(model_name),
+                image_size=get_image_size_for_model(model_name.lower()),
             )
         possible_answers = list({p.answer for p in vl_prompts})
     else:
@@ -416,13 +439,14 @@ def load_l_vl_scores(task_name, model_name, metric="LD"):
     Load the L and VL node attribution scores scores for a given model, task and metric.
     """
     logging.info(f"Loading L and VL scores")
+    model_name_fs = model_name.replace("/", "__")
     l_scores = torch.load(
-        f"./data/{task_name}/results/{model_name}/node_scores/nap_ig_l_ig=5_metric={metric}.pt",
+        f"./data/{task_name}/results/{model_name_fs}/node_scores/nap_ig_l_ig=5_metric={metric}.pt",
         weights_only=True,
     )
     l_scores = {k: v.abs() for k, v in l_scores.items()}
     vl_scores = torch.load(
-        f"./data/{task_name}/results/{model_name}/node_scores/nap_ig_vl_ig=5_metric={metric}.pt",
+        f"./data/{task_name}/results/{model_name_fs}/node_scores/nap_ig_vl_ig=5_metric={metric}.pt",
         weights_only=True,
     )
     vl_scores = {k: v.abs() for k, v in vl_scores.items()}
