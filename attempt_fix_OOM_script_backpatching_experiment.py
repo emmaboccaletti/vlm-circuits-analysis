@@ -341,6 +341,13 @@ def parse_args():
     parser.add_argument("--model_path", type=str, help="Path to the model to be loaded")
     parser.add_argument("--seed", type=int, help="Random seed", default=42)
     parser.add_argument(
+        "--moments_cf_mode",
+        type=str,
+        choices=["random_pair", "language_only", "vision_only", "both"],
+        default="vision_only",
+        help="Counterfactual mode to use for MOMENTS tasks.",
+    )
+    parser.add_argument(
         "--task_name",
         type=str,
         choices=SUPPORTED_TASKS,
@@ -397,6 +404,7 @@ def main():
         seed=args.seed,
         correct_preds_only=False,  # Important because we don't want to have 100% accuracy, but instead want to be able to improve it
         train_test_split_ratio=0.5,  # Doesn't matter, we don't split to discovery and test here
+        moments_cf_mode=args.moments_cf_mode,
     )[0]
     l_prompts = get_parallel_l_prompts(vl_prompts, processor, args.task_name, args.seed)
     logging.info(f"Loaded {len(vl_prompts)} VL prompts and {len(l_prompts)} L prompts")
