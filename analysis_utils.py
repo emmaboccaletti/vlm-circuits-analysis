@@ -32,6 +32,12 @@ from general_utils import (
     get_image_size_for_model,
     setup_random_counterfactual_prompts,
 )
+from moments_utils import (
+    get_moments_event_type_limited_labels,
+    get_moments_limited_labels,
+    load_moments_parallel_l_prompts,
+    load_moments_vl_prompts_list,
+)
 from object_counting_utils import (
     COUNTING_SEQ_LEN,
     get_counting_limited_labels,
@@ -67,6 +73,9 @@ SUPPORTED_TASKS = [
     "color_ordering",
     "sentiment_analysis",
     "factual_recall",
+    "moments_goal",
+    "moments_important",
+    "moments_event_type",
 ]
 
 
@@ -253,6 +262,7 @@ def load_dataset(
     seed: int,
     train_test_split_ratio: float,
     correct_preds_only: bool = True,
+    moments_cf_mode: str = "vision_only",
 ):
     """
     Loads a dataset of correctly-completed prompts for a given model and task.
@@ -273,7 +283,10 @@ def load_dataset(
     """
     # Create / Load the base dataset
     model_name_fs = model_name.replace("/", "__")
-    data_path = f"./data/{task_name}/{model_name_fs}_{'textual' if language_only else 'visual'}_data.csv"
+    if task_name.lower().startswith("moments_"):
+        data_path = f"./data/{task_name}/{moments_cf_mode}_data.csv"
+    else:
+        data_path = f"./data/{task_name}/{model_name_fs}_{'textual' if language_only else 'visual'}_data.csv"
     print(f"This is the data I am using: {data_path}")
 
     if task_name.lower() == "counting":
@@ -397,6 +410,25 @@ def load_dataset(
                 image_size=get_image_size_for_model(model_name.lower()),
             )
         possible_answers = list({p.answer for p in vl_prompts})
+    elif task_name.lower().startswith("moments_"):
+        moments_task = task_name.lower().split("_", 1)[1]
+        if moments_task == "goal":
+            total_prompt_count = 100
+        elif moments_task == "important":
+            total_prompt_count = 150
+        elif moments_task == "event_type":
+            total_prompt_count = 150
+        else:
+            raise ValueError(f"Unknown MOMENTS subtype: {moments_task}")
+        possible_answers = ["yes", "no"] if moments_task in {"goal", "important"} else ["goal", "corner", "shot"]
+        vl_prompts = load_moments_vl_prompts_list(
+            data_path,
+            model=model,
+            processor=processor,
+            language_only=language_only,
+            correct_preds_only=correct_preds_only,
+            image_size=get_image_size_for_model(model_name.lower()),
+        )
     else:
         raise ValueError(f"Unknown task {task_name}")
 
@@ -417,14 +449,19 @@ def load_dataset(
         f"Split to {len(vl_prompts)} discovery prompts and {len(eval_vl_prompts)} eval prompts"
     )
 
-    # Setup counterfactual prompts for each prompt
-    logging.info("Setting up counterfactuals for each prompt")
-    vl_prompts = setup_random_counterfactual_prompts(
-        vl_prompts, seed=seed, task_name=task_name
-    )
-    eval_vl_prompts = setup_random_counterfactual_prompts(
-        eval_vl_prompts, seed=seed, task_name=task_name
-    )
+    # Setup counterfactual prompts for each prompt.
+    # MOMENTS encodes counterfactuals directly in the CSV for all modes
+    # (random-pair and perturbation-based variants alike).
+    if task_name.lower().startswith("moments_"):
+        logging.info("Using precomputed MOMENTS counterfactuals from CSV")
+    else:
+        logging.info("Setting up counterfactuals for each prompt")
+        vl_prompts = setup_random_counterfactual_prompts(
+            vl_prompts, seed=seed, task_name=task_name
+        )
+        eval_vl_prompts = setup_random_counterfactual_prompts(
+            eval_vl_prompts, seed=seed, task_name=task_name
+        )
     for prompt in vl_prompts + eval_vl_prompts:
         split = "Train" if prompt in vl_prompts else "Eval"
         logging.debug(
@@ -465,6 +502,10 @@ def get_limited_labels_for_task(task, model):
     elif task == "factual_recall":
         labels = get_factual_recall_limited_labels(None, model.processor)
         pass
+    elif task in {"moments_goal", "moments_important"}:
+        labels = get_moments_limited_labels(model.processor)
+    elif task == "moments_event_type":
+        labels = get_moments_event_type_limited_labels(model.processor)
     else:
         raise ValueError(f"Task {task} not recognized")
     return model.to_tokens(labels, prepend_bos=False).view(-1)
@@ -481,5 +522,9 @@ def get_parallel_l_prompts(vl_prompts, processor, task_name, seed):
         return load_sentiment_analysis_parallel_l_prompts(vl_prompts, processor)
     elif task_name == "factual_recall":
         return load_factual_recall_parallel_l_prompts(vl_prompts, processor)
+    elif task_name in {"moments_goal", "moments_important"}:
+        return load_moments_parallel_l_prompts(vl_prompts, processor)
+    elif task_name == "moments_event_type":
+        return load_moments_parallel_l_prompts(vl_prompts, processor)
     else:
         raise ValueError(f"Task {task_name} not recognized")
