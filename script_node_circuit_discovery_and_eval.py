@@ -158,6 +158,13 @@ def parse_args():
     parser.add_argument(
         "--ap_ig_steps", type=int, help="Number of steps for EAP-IG", default=5
     )
+    parser.add_argument(
+        "--moments_cf_mode",
+        type=str,
+        choices=["random_pair", "language_only", "vision_only", "both"],
+        default="vision_only",
+        help="Counterfactual mode to use for MOMENTS tasks.",
+    )
     args = parser.parse_args()
     return args
 
@@ -199,6 +206,7 @@ def main():
         args.language_only,
         args.seed,
         DISCOVERY_EVAL_SPLIT_PERCENT,
+        moments_cf_mode=args.moments_cf_mode,
     )
 
     # Run node attribution patching on prompts or load pre-calculated results
