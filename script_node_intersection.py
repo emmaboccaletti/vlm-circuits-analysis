@@ -51,6 +51,13 @@ def parse_args():
         type=float,
         help="For which percentage of components in the VL circuit to analyze cross-modality functionallity",
     )
+    parser.add_argument(
+        "--moments_cf_mode",
+        type=str,
+        choices=["random_pair", "language_only", "vision_only", "both"],
+        default="vision_only",
+        help="Counterfactual mode to use for MOMENTS tasks.",
+    )
     args = parser.parse_args()
     return args
 
@@ -421,6 +428,7 @@ def main():
         language_only=False,
         seed=args.seed,
         train_test_split_ratio=DISCOVERY_EVAL_SPLIT_PERCENT,
+        moments_cf_mode=args.moments_cf_mode,
     )[0]
     l_prompts = load_dataset(
         model=model,
@@ -430,6 +438,7 @@ def main():
         language_only=True,
         seed=args.seed,
         train_test_split_ratio=DISCOVERY_EVAL_SPLIT_PERCENT,
+        moments_cf_mode=args.moments_cf_mode,
     )[0]
 
     # Analyze the intersection of heads and neurons per percentage of components
