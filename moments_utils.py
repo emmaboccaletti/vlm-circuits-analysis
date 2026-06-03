@@ -17,6 +17,8 @@ from general_utils import (
     load_image_for_model,
 )
 
+REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+
 
 MOMENTS_CF_MODES = {"random_pair", "language_only", "vision_only", "both"}
 MOMENTS_LABELS = ["yes", "no"]
@@ -33,13 +35,43 @@ def _split_paths(field: str) -> List[str]:
 
 
 def _resolve_paths(image_paths: List[str], data_csv_path: str) -> List[str]:
-    data_csv_dir = os.path.dirname(data_csv_path)
+    data_csv_dir = os.path.dirname(os.path.abspath(data_csv_path))
     resolved = []
     for path in image_paths:
+        candidates = []
+        normalized = path.lstrip("/")
+        anchor_candidates = [
+            "thesis_project/",
+            "reproducing_code/",
+            "tmp_moments",
+            "tmp/",
+        ]
+        for anchor in anchor_candidates:
+            if anchor in normalized:
+                candidates.append(os.path.join(REPO_ROOT, normalized[normalized.index(anchor) :]))
         if os.path.isabs(path):
-            resolved.append(path)
+            candidates.extend(
+                [
+                    path,
+                    os.path.join(REPO_ROOT, normalized),
+                    os.path.join(data_csv_dir, normalized),
+                ]
+            )
         else:
-            resolved.append(os.path.join(data_csv_dir, path))
+            candidates.extend(
+                [
+                    os.path.join(data_csv_dir, path),
+                    os.path.join(REPO_ROOT, path),
+                    os.path.join(REPO_ROOT, normalized),
+                ]
+            )
+
+        chosen = None
+        for candidate in candidates:
+            if os.path.exists(candidate):
+                chosen = candidate
+                break
+        resolved.append(chosen or candidates[0])
     return resolved
 
 
