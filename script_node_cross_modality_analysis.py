@@ -53,6 +53,7 @@ def load_l_vl_datasets(model, processor, args):
         language_only=True,
         seed=args.seed,
         train_test_split_ratio=DISCOVERY_EVAL_SPLIT_PERCENT,
+        moments_cf_mode=args.moments_cf_mode,
     )
     _, __, eval_vl_prompts = load_dataset(
         model=model,
@@ -62,6 +63,7 @@ def load_l_vl_datasets(model, processor, args):
         language_only=False,
         seed=args.seed,
         train_test_split_ratio=DISCOVERY_EVAL_SPLIT_PERCENT,
+        moments_cf_mode=args.moments_cf_mode,
     )
     return eval_l_prompts, eval_vl_prompts
 
@@ -438,6 +440,13 @@ def parse_args():
         type=str,
         choices=SUPPORTED_TASKS,
         help="Name of the task to be localized",
+    )
+    parser.add_argument(
+        "--moments_cf_mode",
+        type=str,
+        choices=["random_pair", "language_only", "vision_only", "both"],
+        default="vision_only",
+        help="Counterfactual mode to use for MOMENTS tasks.",
     )
     parser.add_argument(
         "--l_circuit_percentage",
