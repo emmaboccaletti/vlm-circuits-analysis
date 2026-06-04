@@ -165,6 +165,18 @@ def parse_args():
         default="vision_only",
         help="Counterfactual mode to use for MOMENTS tasks.",
     )
+    parser.add_argument(
+        "--moments_max_images",
+        type=int,
+        default=None,
+        help="If set, only use the first N frames per MOMENTS example.",
+    )
+    parser.add_argument(
+        "--moments_total_prompt_count",
+        type=int,
+        default=None,
+        help="If set, cap the total MOMENTS prompt count used for train/eval splitting.",
+    )
     args = parser.parse_args()
     return args
 
@@ -207,6 +219,8 @@ def main():
         args.seed,
         DISCOVERY_EVAL_SPLIT_PERCENT,
         moments_cf_mode=args.moments_cf_mode,
+        moments_max_images=args.moments_max_images,
+        moments_total_prompt_count=args.moments_total_prompt_count,
     )
 
     # Run node attribution patching on prompts or load pre-calculated results
