@@ -83,6 +83,24 @@ def _load_image_sequence(
     return [load_image_for_model(path, model_name, target_size=target_size) for path in image_paths]
 
 
+def _build_qwen_chat_prompt(processor, prompt_text: str, n_images: int) -> str:
+    messages = [
+        {
+            "role": "user",
+            "content": [
+                {"type": "image"} for _ in range(n_images)
+            ]
+            + [
+                {
+                    "type": "text",
+                    "text": prompt_text,
+                }
+            ],
+        }
+    ]
+    return processor.apply_chat_template(messages, add_generation_prompt=True)
+
+
 def load_moments_vl_prompts_list(
     data_csv_path: str,
     model: Optional[lens.HookedVLTransformer] = None,
@@ -111,9 +129,9 @@ def load_moments_vl_prompts_list(
     with open(data_csv_path, "r", newline="") as csvfile:
         reader = csv.DictReader(csvfile)
         for row in reader:
-            prompt = row["prompt"]
+            prompt_text = row["prompt"]
             answer = row["answer"]
-            cf_prompt = row.get("cf_prompt") or None
+            cf_prompt_text = row.get("cf_prompt") or None
             cf_answer = row.get("cf_answer") or None
             image_paths = _resolve_paths(
                 _split_paths(row.get("image_paths", "")), data_csv_path
@@ -136,6 +154,15 @@ def load_moments_vl_prompts_list(
                 images = []
                 if cf_image_paths:
                     cf_images = []
+
+            prompt = prompt_text
+            cf_prompt = cf_prompt_text
+            if processor is not None and not language_only:
+                prompt = _build_qwen_chat_prompt(processor, prompt_text, len(image_paths))
+                if cf_prompt_text:
+                    cf_prompt = _build_qwen_chat_prompt(
+                        processor, cf_prompt_text, len(cf_image_paths)
+                    )
 
             metadata = {
                 "clip_id": row.get("clip_id"),
