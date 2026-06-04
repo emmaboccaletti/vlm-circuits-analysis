@@ -108,6 +108,7 @@ def load_moments_vl_prompts_list(
     language_only: bool = False,
     correct_preds_only: bool = True,
     image_size=None,
+    max_images: Optional[int] = None,
 ) -> List[VLPrompt]:
     """
     Load MOMENTS prompts from a CSV produced by create_moments_dataset.py.
@@ -139,6 +140,12 @@ def load_moments_vl_prompts_list(
             cf_image_paths = _resolve_paths(
                 _split_paths(row.get("cf_image_paths", "")), data_csv_path
             )
+
+            if max_images is not None:
+                if max_images < 1:
+                    raise ValueError("max_images must be at least 1")
+                image_paths = image_paths[:max_images]
+                cf_image_paths = cf_image_paths[:max_images]
 
             images = []
             cf_images = None

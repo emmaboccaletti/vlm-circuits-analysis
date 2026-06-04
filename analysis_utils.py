@@ -263,6 +263,8 @@ def load_dataset(
     train_test_split_ratio: float,
     correct_preds_only: bool = True,
     moments_cf_mode: str = "vision_only",
+    moments_max_images: int | None = None,
+    moments_total_prompt_count: int | None = None,
 ):
     """
     Loads a dataset of correctly-completed prompts for a given model and task.
@@ -420,6 +422,10 @@ def load_dataset(
             total_prompt_count = 150
         else:
             raise ValueError(f"Unknown MOMENTS subtype: {moments_task}")
+        if moments_total_prompt_count is not None:
+            if moments_total_prompt_count < 2:
+                raise ValueError("moments_total_prompt_count must be at least 2")
+            total_prompt_count = min(total_prompt_count, moments_total_prompt_count)
         possible_answers = ["yes", "no"] if moments_task in {"goal", "important"} else ["goal", "corner", "shot"]
         vl_prompts = load_moments_vl_prompts_list(
             data_path,
@@ -428,6 +434,7 @@ def load_dataset(
             language_only=language_only,
             correct_preds_only=correct_preds_only,
             image_size=get_image_size_for_model(model_name.lower()),
+            max_images=moments_max_images,
         )
     else:
         raise ValueError(f"Unknown task {task_name}")
