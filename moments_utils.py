@@ -60,8 +60,8 @@ def _resolve_paths(image_paths: List[str], data_csv_path: str) -> List[str]:
         else:
             candidates.extend(
                 [
-                    os.path.join(data_csv_dir, path),
                     os.path.join(REPO_ROOT, path),
+                    os.path.join(data_csv_dir, path),
                     os.path.join(REPO_ROOT, normalized),
                 ]
             )
