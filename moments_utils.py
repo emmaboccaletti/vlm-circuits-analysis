@@ -1,5 +1,6 @@
 import csv
 import os
+import logging
 import sys
 from typing import Dict, List, Optional
 
@@ -83,6 +84,22 @@ def _load_image_sequence(
     return [load_image_for_model(path, model_name, target_size=target_size) for path in image_paths]
 
 
+def _prompt_token_length(model, prompt: str, images: List[Image.Image]) -> int:
+    """
+    Return the tokenized length of a MOMENTS prompt with its associated images.
+
+    We use the same model-side tokenization path that the analysis code uses, so
+    this length check matches the tensor shapes seen during attribution.
+    """
+    tokenized = model.to_tokens(
+        prompt,
+        images if images else None,
+        prepend_bos=False,
+        truncate=False,
+    )
+    return int(tokenized.shape[1])
+
+
 def _build_qwen_chat_prompt(processor, prompt_text: str, n_images: int) -> str:
     messages = [
         {
@@ -127,9 +144,14 @@ def load_moments_vl_prompts_list(
         image_size = get_image_size_for_model(model.model_name.lower())
 
     vl_prompts: List[VLPrompt] = []
+    total_rows = 0
+    kept_rows = 0
+    random_pair_rows = 0
+    dropped_length_mismatches = 0
     with open(data_csv_path, "r", newline="") as csvfile:
         reader = csv.DictReader(csvfile)
         for row in reader:
+            total_rows += 1
             prompt_text = row["prompt"]
             answer = row["answer"]
             cf_prompt_text = row.get("cf_prompt") or None
@@ -187,6 +209,24 @@ def load_moments_vl_prompts_list(
                 "cf_image_paths": cf_image_paths,
             }
 
+            if row.get("cf_mode") == "random_pair" and cf_prompt:
+                random_pair_rows += 1
+                prompt_len = _prompt_token_length(model, prompt, images)
+                cf_prompt_len = _prompt_token_length(model, cf_prompt, cf_images or [])
+                if prompt_len != cf_prompt_len:
+                    dropped_length_mismatches += 1
+                    logging.info(
+                        "Skipping MOMENTS random_pair row %s/%s/%s due to token-length mismatch (%d vs %d)",
+                        row.get("clip_id"),
+                        row.get("group_idx"),
+                        row.get("clip_name"),
+                        prompt_len,
+                        cf_prompt_len,
+                    )
+                    continue
+                metadata["prompt_token_length"] = prompt_len
+                metadata["cf_prompt_token_length"] = cf_prompt_len
+
             vl_prompts.append(
                 VLPrompt(
                     prompt,
@@ -198,6 +238,22 @@ def load_moments_vl_prompts_list(
                     metadata=metadata,
                 )
             )
+            kept_rows += 1
+
+    logging.info(
+        "Loaded MOMENTS prompts from %s: %d rows seen, %d rows kept, %d rows dropped",
+        data_csv_path,
+        total_rows,
+        kept_rows,
+        total_rows - kept_rows,
+    )
+    if random_pair_rows > 0:
+        logging.info(
+            "MOMENTS random_pair rows seen: %d, matched and kept: %d, dropped for token-length mismatch: %d",
+            random_pair_rows,
+            random_pair_rows - dropped_length_mismatches,
+            dropped_length_mismatches,
+        )
     return vl_prompts
 
 

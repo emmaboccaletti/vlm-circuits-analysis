@@ -125,3 +125,112 @@ def test_moments_loader_smoke():
         assert prompt.metadata["clip_id"] == "0jJj5Mme"
     finally:
         os.remove(csv_path)
+
+
+def test_moments_random_pair_length_filter_drops_mismatch():
+    _install_minimal_shims()
+
+    repo_root = Path(__file__).resolve().parents[3]
+    sys.path.append(str(repo_root / "reproducing_code" / "vlm-circuits-analysis"))
+
+    from moments_utils import load_moments_vl_prompts_list
+
+    sample_frames = (
+        repo_root
+        / "thesis_project"
+        / "data"
+        / "MOMENTS_frames"
+        / "frames"
+        / "0jJj5Mme"
+        / "im"
+        / "1"
+        / "IM_1"
+    )
+    frame_paths = sorted(str(p.resolve()) for p in sample_frames.glob("frame_*.png"))
+    assert len(frame_paths) == 10
+
+    fd, csv_path = tempfile.mkstemp(suffix=".csv")
+    os.close(fd)
+    try:
+        with open(csv_path, "w", newline="") as f:
+            writer = csv.DictWriter(
+                f,
+                fieldnames=[
+                    "clip_id",
+                    "group_idx",
+                    "clip_name",
+                    "event_type",
+                    "label",
+                    "similarity",
+                    "local_text",
+                    "global_text",
+                    "prompt",
+                    "image_paths",
+                    "answer",
+                    "cf_mode",
+                    "cf_prompt",
+                    "cf_image_paths",
+                    "cf_answer",
+                    "cf_prompt_state",
+                    "cf_prompt_changes",
+                ],
+            )
+            writer.writeheader()
+            writer.writerow(
+                {
+                    "clip_id": "clip_a",
+                    "group_idx": "1",
+                    "clip_name": "IM_1",
+                    "event_type": "goal",
+                    "label": "goal",
+                    "similarity": "0.98",
+                    "local_text": "one two three",
+                    "global_text": "one two three",
+                    "prompt": "one two three",
+                    "image_paths": "|".join(frame_paths[:1]),
+                    "answer": "yes",
+                    "cf_mode": "random_pair",
+                    "cf_prompt": "one two three four five six",
+                    "cf_image_paths": "|".join(frame_paths[:1]),
+                    "cf_answer": "no",
+                    "cf_prompt_state": "random_pair",
+                    "cf_prompt_changes": "paired_with:clip_b__1__IM_2",
+                }
+            )
+            writer.writerow(
+                {
+                    "clip_id": "clip_b",
+                    "group_idx": "1",
+                    "clip_name": "IM_2",
+                    "event_type": "goal",
+                    "label": "goal",
+                    "similarity": "0.98",
+                    "local_text": "one two three",
+                    "global_text": "one two three",
+                    "prompt": "one two three four",
+                    "image_paths": "|".join(frame_paths[:1]),
+                    "answer": "no",
+                    "cf_mode": "random_pair",
+                    "cf_prompt": "one two three four",
+                    "cf_image_paths": "|".join(frame_paths[:1]),
+                    "cf_answer": "yes",
+                    "cf_prompt_state": "random_pair",
+                    "cf_prompt_changes": "paired_with:clip_a__1__IM_1",
+                }
+            )
+
+        class DummyModel:
+            model_name = "llava-1.5"
+
+            def to_tokens(self, prompt, images=None, prepend_bos=False, truncate=True):
+                length = len(str(prompt).split()) + (len(images) if images else 0)
+                return types.SimpleNamespace(shape=(1, length))
+
+        prompts = load_moments_vl_prompts_list(
+            csv_path, model=DummyModel(), language_only=False
+        )
+        assert len(prompts) == 1
+        assert prompts[0].metadata["clip_id"] == "clip_b"
+        assert prompts[0].metadata["prompt_token_length"] == prompts[0].metadata["cf_prompt_token_length"]
+    finally:
+        os.remove(csv_path)
