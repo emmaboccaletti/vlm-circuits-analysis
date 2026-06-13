@@ -234,3 +234,144 @@ def test_moments_random_pair_length_filter_drops_mismatch():
         assert prompts[0].metadata["prompt_token_length"] == prompts[0].metadata["cf_prompt_token_length"]
     finally:
         os.remove(csv_path)
+
+
+def test_moments_random_pair_builder_same_length_only():
+    _install_minimal_shims()
+
+    repo_root = Path(__file__).resolve().parents[3]
+    sys.path.append(str(repo_root / "thesis_project" / "data_generation"))
+
+    from create_moments_dataset import build_random_pair_rows
+
+    clean_records = [
+        {
+            "clip_id": "clip_a",
+            "group_idx": "1",
+            "clip_name": "IM_1",
+            "event_type": "goal",
+            "label": "goal",
+            "similarity": "1.0",
+            "local_text": "local a",
+            "global_text": "global a",
+            "answer": "yes",
+            "_sample_id": "clip_a__1__IM_1",
+            "_pairing_token_length": 128,
+            "_pairing_heuristic_length": 3,
+            "prompt": "a",
+            "image_paths": "a.png",
+        },
+        {
+            "clip_id": "clip_b",
+            "group_idx": "1",
+            "clip_name": "IM_2",
+            "event_type": "goal",
+            "label": "goal",
+            "similarity": "1.0",
+            "local_text": "local b",
+            "global_text": "global b",
+            "answer": "no",
+            "_sample_id": "clip_b__1__IM_2",
+            "_pairing_token_length": 128,
+            "_pairing_heuristic_length": 3,
+            "prompt": "b",
+            "image_paths": "b.png",
+        },
+        {
+            "clip_id": "clip_c",
+            "group_idx": "1",
+            "clip_name": "IM_3",
+            "event_type": "goal",
+            "label": "goal",
+            "similarity": "1.0",
+            "local_text": "local c",
+            "global_text": "global c",
+            "answer": "no",
+            "_sample_id": "clip_c__1__IM_3",
+            "_pairing_token_length": 64,
+            "_pairing_heuristic_length": 6,
+            "prompt": "c",
+            "image_paths": "c.png",
+        },
+    ]
+
+    rows, stats = build_random_pair_rows(
+        task="goal",
+        clean_records=clean_records,
+        length_mode="qwen",
+    )
+    assert len(rows) == 2
+    assert {row["clip_id"] for row in rows} == {"clip_a", "clip_b"}
+    assert {row["cf_prompt_changes"] for row in rows} == {
+        "paired_with:clip_b__1__IM_2",
+        "paired_with:clip_a__1__IM_1",
+    }
+    assert stats["kept"] == 2
+    assert stats["dropped_no_candidate"] == 1
+
+
+def test_moments_random_pair_builder_heuristic_length_mode():
+    _install_minimal_shims()
+
+    repo_root = Path(__file__).resolve().parents[3]
+    sys.path.append(str(repo_root / "thesis_project" / "data_generation"))
+
+    from create_moments_dataset import build_random_pair_rows
+
+    clean_records = [
+        {
+            "clip_id": "clip_a",
+            "group_idx": "1",
+            "clip_name": "IM_1",
+            "event_type": "goal",
+            "label": "goal",
+            "similarity": "1.0",
+            "local_text": "local a",
+            "global_text": "global a",
+            "answer": "yes",
+            "_sample_id": "clip_a__1__IM_1",
+            "_pairing_heuristic_length": 4,
+            "prompt": "one two three four",
+            "image_paths": "a.png",
+        },
+        {
+            "clip_id": "clip_b",
+            "group_idx": "1",
+            "clip_name": "IM_2",
+            "event_type": "goal",
+            "label": "goal",
+            "similarity": "1.0",
+            "local_text": "local b",
+            "global_text": "global b",
+            "answer": "no",
+            "_sample_id": "clip_b__1__IM_2",
+            "_pairing_heuristic_length": 4,
+            "prompt": "five six seven eight",
+            "image_paths": "b.png",
+        },
+        {
+            "clip_id": "clip_c",
+            "group_idx": "1",
+            "clip_name": "IM_3",
+            "event_type": "goal",
+            "label": "goal",
+            "similarity": "1.0",
+            "local_text": "local c",
+            "global_text": "global c",
+            "answer": "no",
+            "_sample_id": "clip_c__1__IM_3",
+            "_pairing_heuristic_length": 8,
+            "prompt": "nine ten eleven twelve thirteen fourteen fifteen sixteen",
+            "image_paths": "c.png",
+        },
+    ]
+
+    rows, stats = build_random_pair_rows(
+        task="goal",
+        clean_records=clean_records,
+        length_mode="heuristic",
+    )
+    assert len(rows) == 2
+    assert {row["clip_id"] for row in rows} == {"clip_a", "clip_b"}
+    assert stats["kept"] == 2
+    assert stats["dropped_no_candidate"] == 1
