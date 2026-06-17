@@ -10,3 +10,12 @@ This repository contains the code for the experiments of our VLM circuit overlap
 * All script files (`script_.*.py`) contain the code for running the experiments described in the paper as GPU jobs.
 * Other files contain processes used in experiments (attribution patching, faithfulness evaluations, alignment between modalities, circuit overlap measurements, utility functions for each task, etc).
 * `docs` contains code for the project website.
+
+## MOMENTS utilities
+The MOMENTS pipeline now includes a small checker for token-length drop rates:
+
+```bash
+python3 check_moments_drop_rates.py --max_images 1
+```
+
+By default it reports the drop rate for `random_pair`, `language_only`, and `both` using the Qwen processor/tokenizer path, without loading model weights.
