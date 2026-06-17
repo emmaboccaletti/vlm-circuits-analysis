@@ -30,6 +30,7 @@ from modality_alignment_utils import (
     POS_MAPPINGS,
     convert_components_modality,
     get_image_positions,
+    get_moments_alignment_info,
     get_text_sequence_positions,
 )
 from evaluation_utils import circuit_faithfulness
@@ -120,6 +121,21 @@ def analyze_cross_modality_DQL_interchange_faithfulness(
     vl_seq_len = vl_scores[f"blocks.0.attn.hook_z"].shape[0]
     limited_labels = get_limited_labels_for_task(args.task_name, model)
 
+    if args.task_name.startswith("moments_"):
+        # MOMENTS uses a runtime-derived alignment because the Qwen processor
+        # inserts the visual block dynamically and the static tables from the
+        # older tasks do not apply.
+        moments_alignment_info = get_moments_alignment_info(
+            model, eval_l_prompts[0], eval_vl_prompts[0], args.task_name
+        )
+        pos_mapping = moments_alignment_info["pos_mapping"]
+        l_D_limits = moments_alignment_info["l_data_limits"]
+        vl_D_limits = moments_alignment_info["vl_data_limits"]
+    else:
+        l_D_limits, vl_D_limits = get_text_sequence_positions(
+            args.model_name, args.task_name
+        ), get_image_positions(args.model_name, args.task_name)
+
     MANDATORY_KEYS = [
         # High Baseline, all same modality
         "DV_QV_LV",
@@ -187,10 +203,8 @@ def analyze_cross_modality_DQL_interchange_faithfulness(
         ) = get_top_scoring_components(model, vl_scores, n_vl_heads, n_vl_mlp_neurons)
         vl_circuit_comps = top_vl_heads + top_vl_mlps_with_neurons
 
-        # Split components to D (data=image/text sequence), Q(query=question) and L(last) positions
-        l_D_limits, vl_D_limits = get_text_sequence_positions(
-            args.model_name, args.task_name
-        ), get_image_positions(args.model_name, args.task_name)
+        # Split components to D (data=image/text sequence), Q(query=question)
+        # and L(last) positions. MOMENTS uses the runtime-derived limits above.
         l_Q_limits, vl_Q_limits = [l_D_limits[-1], l_seq_len - 1], [
             vl_D_limits[-1],
             vl_seq_len - 1,
@@ -496,7 +510,12 @@ def main():
 
     # Analyze cross-modality faithfulness
     logging.info("Loading L-VL position mappings and verifying")
-    pos_mapping = POS_MAPPINGS[f"{args.model_name[:4]}_{args.task_name}"]
+    if args.task_name.startswith("moments_"):
+        pos_mapping = get_moments_alignment_info(
+            model, eval_l_prompts[0], eval_vl_prompts[0], args.task_name
+        )["pos_mapping"]
+    else:
+        pos_mapping = POS_MAPPINGS[f"{args.model_name[:4]}_{args.task_name}"]
     pos_mapping.assert_full_mapping(eval_l_prompts[0], eval_vl_prompts[0], model)
 
     logging.info("Analyzing cross-modality DQL interchange faithfulness")

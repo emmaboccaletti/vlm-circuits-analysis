@@ -20,6 +20,7 @@ from modality_alignment_utils import (
     PositionMapping,
     convert_components_modality,
     get_image_positions,
+    get_moments_alignment_info,
     get_text_sequence_positions,
 )
 
@@ -103,7 +104,7 @@ def get_intersection(set_l, set_vl, pos_mapping=None):
         return intersection_in_vl, intersection_in_l
 
 
-def split_to_d_q_g(components, seq_len, is_language, args):
+def split_to_d_q_g(components, seq_len, is_language, args, moments_d_limits=None):
     """
     Split the components into D (data), Q (query) and G (generation) components, by position.
 
@@ -116,7 +117,9 @@ def split_to_d_q_g(components, seq_len, is_language, args):
     Returns:
         tuple: Three lists of components: D, Q and G.
     """
-    if is_language:
+    if moments_d_limits is not None:
+        D_limits = moments_d_limits
+    elif is_language:
         D_limits = get_text_sequence_positions(args.model_name, args.task_name)
     else:
         D_limits = get_image_positions(args.model_name, args.task_name)
@@ -162,6 +165,7 @@ def get_full_intersection_dict(
     vl_scores,
     pos_mapping,
     args,
+    moments_alignment_info=None,
 ):
     """
     Get the full intersection dictionary for L and VL circuits.
@@ -247,19 +251,43 @@ def get_full_intersection_dict(
 
     # Get intersections separately for D (data=image/text sequence), Q(query=question) and G(generation=last position) positions
     l_D_heads, l_Q_heads, l_G_heads = split_to_d_q_g(
-        l_circuit_heads, l_seq_len, True and not both_vl, args
+        l_circuit_heads,
+        l_seq_len,
+        True and not both_vl,
+        args,
+        moments_d_limits=(
+            moments_alignment_info["l_data_limits"] if moments_alignment_info else None
+        ),
     )
 
     l_D_neurons, l_Q_neurons, l_G_neurons = split_to_d_q_g(
-        l_circuit_neurons, l_seq_len, True and not both_vl, args
+        l_circuit_neurons,
+        l_seq_len,
+        True and not both_vl,
+        args,
+        moments_d_limits=(
+            moments_alignment_info["l_data_limits"] if moments_alignment_info else None
+        ),
     )
 
     vl_D_heads, vl_Q_heads, vl_G_heads = split_to_d_q_g(
-        vl_circuit_heads, vl_seq_len, False, args
+        vl_circuit_heads,
+        vl_seq_len,
+        False,
+        args,
+        moments_d_limits=(
+            moments_alignment_info["vl_data_limits"] if moments_alignment_info else None
+        ),
     )
 
     vl_D_neurons, vl_Q_neurons, vl_G_neurons = split_to_d_q_g(
-        vl_circuit_neurons, vl_seq_len, False, args
+        vl_circuit_neurons,
+        vl_seq_len,
+        False,
+        args,
+        moments_d_limits=(
+            moments_alignment_info["vl_data_limits"] if moments_alignment_info else None
+        ),
     )
 
     l_D_head_iou, vl_D_head_iou = get_intersection(l_D_heads, vl_D_heads, pos_mapping)
@@ -277,19 +305,47 @@ def get_full_intersection_dict(
 
     # Get baseline intersections separately for D, Q and G positions
     l_baseline_D_heads, l_baseline_Q_heads, l_baseline_G_heads = split_to_d_q_g(
-        l_random_heads, l_seq_len, True and not both_vl, args
+        l_random_heads,
+        l_seq_len,
+        True and not both_vl,
+        args,
+        moments_d_limits=(
+            moments_alignment_info["l_data_limits"] if moments_alignment_info else None
+        ),
     )
 
     l_baseline_D_neurons, l_baseline_Q_neurons, l_baseline_G_neurons = split_to_d_q_g(
-        l_random_neurons, l_seq_len, True and not both_vl, args
+        l_random_neurons,
+        l_seq_len,
+        True and not both_vl,
+        args,
+        moments_d_limits=(
+            moments_alignment_info["l_data_limits"] if moments_alignment_info else None
+        ),
     )
 
     vl_baseline_D_heads, vl_baseline_Q_heads, vl_baseline_G_heads = split_to_d_q_g(
-        vl_random_heads, vl_seq_len, False, args
+        vl_random_heads,
+        vl_seq_len,
+        False,
+        args,
+        moments_d_limits=(
+            moments_alignment_info["vl_data_limits"] if moments_alignment_info else None
+        ),
     )
 
     vl_baseline_D_neurons, vl_baseline_Q_neurons, vl_baseline_G_neurons = (
-        split_to_d_q_g(vl_random_neurons, vl_seq_len, False, args)
+        split_to_d_q_g(
+            vl_random_neurons,
+            vl_seq_len,
+            False,
+            args,
+            moments_d_limits=(
+                moments_alignment_info["vl_data_limits"]
+                if moments_alignment_info
+                else None
+            ),
+        )
     )
 
     l_D_head_baseline, vl_D_head_baseline = get_intersection(
@@ -381,7 +437,7 @@ def get_full_intersection_dict(
     return result_dict
 
 
-def analyze_circuit_intersections(model, args, pos_mapping):
+def analyze_circuit_intersections(model, args, pos_mapping, moments_alignment_info=None):
     intersection_results_path = (
         f"./data/{args.task_name}/results/{args.model_name}/intersection_results.pt"
     )
@@ -395,6 +451,7 @@ def analyze_circuit_intersections(model, args, pos_mapping):
         vl_scores,
         pos_mapping,
         args,
+        moments_alignment_info=moments_alignment_info,
     )
     logging.info(result_dict)
     torch.save(result_dict, intersection_results_path)
@@ -443,9 +500,21 @@ def main():
 
     # Analyze the intersection of heads and neurons per percentage of components
     logging.info("Analyzing intersection of components")
-    pos_mapping = POS_MAPPINGS[f"{args.model_name[:4]}_{args.task_name}"]
+    if args.task_name.startswith("moments_"):
+        moments_alignment_info = get_moments_alignment_info(
+            model, l_prompts[0], vl_prompts[0], args.task_name
+        )
+        pos_mapping = moments_alignment_info["pos_mapping"]
+    else:
+        moments_alignment_info = None
+        pos_mapping = POS_MAPPINGS[f"{args.model_name[:4]}_{args.task_name}"]
     pos_mapping.assert_full_mapping(l_prompts[0], vl_prompts[0], model)
-    analyze_circuit_intersections(model, args, pos_mapping)
+    analyze_circuit_intersections(
+        model,
+        args,
+        pos_mapping,
+        moments_alignment_info=moments_alignment_info,
+    )
 
     logging.info("Analysis complete")
 

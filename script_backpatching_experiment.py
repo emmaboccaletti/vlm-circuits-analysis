@@ -17,7 +17,11 @@ from factual_recall_utils import (
     get_factual_recall_question_template,
 )
 from functools import partial
-from modality_alignment_utils import get_image_positions, get_text_sequence_positions
+from modality_alignment_utils import (
+    get_image_positions,
+    get_moments_alignment_info,
+    get_text_sequence_positions,
+)
 from component import Component
 from general_utils import (
     generate_activations,
@@ -47,6 +51,7 @@ def backpatching(
     repeat_processing_in_data_positions=True,
     layer_window_size=1,
     cached_activations=None,
+    moments_alignment_info=None,
 ):
     """
     Run a single back-patching experiment, with a given l_src -> l_dst.
@@ -66,7 +71,16 @@ def backpatching(
         cached_activations (torch.Tensor): The cached activations on all VL prompts. To be used in further calls to the function.
     """
     is_control = len(eval_vl_prompts[0].images) == 0
-    if is_control:
+    if moments_alignment_info is not None:
+        # MOMENTS uses a runtime-derived token alignment because the visual
+        # prompt layout is not covered by the static task tables used for the
+        # earlier datasets.
+        data_positions = (
+            moments_alignment_info["l_data_limits"]
+            if is_control
+            else moments_alignment_info["vl_data_limits"]
+        )
+    elif is_control:
         data_positions = get_text_sequence_positions(args.model_name, args.task_name)
     else:
         data_positions = get_image_positions(args.model_name, args.task_name)
@@ -198,15 +212,21 @@ def looped_backpatching(
     dst_layer,
     repeat_processing_in_data_positions=False,
     layer_window_size=1,
+    moments_alignment_info=None,
 ):
     """
     Runs an iterative back-patching experiment. Largely same args as backpatching.
     """
     assert repeat_processing_in_data_positions, "Unsupported otherwise"
 
-    img_positions = get_image_positions(
-        args.model_name, args.task_name, return_range=False
-    )
+    if moments_alignment_info is not None:
+        # MOMENTS uses the first prompt pair to recover the actual image-token
+        # span inserted by the Qwen processor.
+        img_positions = moments_alignment_info["vl_data_limits"]
+    else:
+        img_positions = get_image_positions(
+            args.model_name, args.task_name, return_range=False
+        )
     src_dst_layers = list(
         zip(
             range(
@@ -409,6 +429,11 @@ def main():
     logging.info(f"Loaded {len(vl_prompts)} VL prompts and {len(l_prompts)} L prompts")
 
     l_prompts, vl_prompts = filter_bad_sequence_lengths(l_prompts, vl_prompts, model)
+    moments_alignment_info = None
+    if args.task_name.startswith("moments_"):
+        moments_alignment_info = get_moments_alignment_info(
+            model, l_prompts[0], vl_prompts[0], args.task_name
+        )
 
     # Backpatching experiments
     results_path = (
@@ -494,6 +519,7 @@ def main():
                                 repeat_processing_in_data_positions=repeat_processing_in_data_positions,
                                 layer_window_size=layer_window_size,
                                 cached_activations=cached_activations,
+                                moments_alignment_info=moments_alignment_info,
                             )
 
                         if current_cfg_baseline_accs[i, j] == -1:
@@ -509,6 +535,7 @@ def main():
                                 repeat_processing_in_data_positions=repeat_processing_in_data_positions,
                                 layer_window_size=layer_window_size,
                                 cached_activations=cached_activations_l_baseline,
+                                moments_alignment_info=moments_alignment_info,
                             )
 
                     results_dict[current_cfg] = (
@@ -550,6 +577,7 @@ def main():
             best_dst_layer,
             repeat_processing_in_data_positions=best_repeat_processing_in_data_positions,
             layer_window_size=best_layer_window_size,
+            moments_alignment_info=moments_alignment_info,
         )
         logging.info(
             f"Looped backpatching accuracy for loops: {list(zip(range(max_loop_count), looped_accs))}"

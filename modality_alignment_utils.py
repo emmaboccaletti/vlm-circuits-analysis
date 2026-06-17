@@ -1,3 +1,4 @@
+import logging
 import torch
 from collections import defaultdict
 from component import Component
@@ -141,6 +142,123 @@ class PositionMapping:
 QWEN_PREFIX_LEN = 14
 PIXTRAL_PREFIX_LEN = 2
 GEMMA_PREFIX_LEN = 4
+
+# MOMENTS uses the same Qwen chat template, but the prompt body and question
+# suffix are task-specific. We derive the alignment dynamically from the first
+# loaded prompt pair rather than hard-coding a static position table.
+MOMENTS_QWEN_QUESTION_BY_TASK = {
+    "moments_goal": "Is this a goal? Answer yes or no.",
+    "moments_important": "Is this an important moment in the match? Answer yes or no.",
+    "moments_event_type": "What type of moment is this? Answer goal, corner, or shot.",
+}
+
+
+def _tokens_as_strings(model, prompt, images=None):
+    token_ids = model.to_tokens(prompt, images, prepend_bos=False).view(-1)
+    return [model.to_single_str_token(token_id.item()) for token_id in token_ids]
+
+
+def _find_subsequence(tokens, subsequence, start=0):
+    if len(subsequence) == 0:
+        return start
+    last_start = len(tokens) - len(subsequence)
+    for idx in range(start, last_start + 1):
+        if tokens[idx : idx + len(subsequence)] == subsequence:
+            return idx
+    return None
+
+
+def get_moments_alignment_info(model, l_prompt, vl_prompt, task_name):
+    """
+    Derive the MOMENTS Qwen alignment directly from the loaded prompt pair.
+
+    This keeps the MOMENTS vision-only path working without requiring a
+    hard-coded static token-position table. The helper uses the actual tokenized
+    prompt pair to recover:
+    - the shared chat-template prefix
+    - the inserted image-token block in the VL prompt
+    - the prompt body / question split in the L prompt
+
+    The returned mapping is intentionally MOMENTS-specific and should only be
+    used for the MOMENTS tasks.
+    """
+    if task_name not in MOMENTS_QWEN_QUESTION_BY_TASK:
+        raise KeyError(f"{task_name} is not a supported MOMENTS task")
+
+    l_tokens = _tokens_as_strings(model, l_prompt.prompt, l_prompt.images)
+    vl_tokens = _tokens_as_strings(model, vl_prompt.prompt, vl_prompt.images)
+    question_tokens = _tokens_as_strings(
+        model, MOMENTS_QWEN_QUESTION_BY_TASK[task_name]
+    )
+
+    prefix_len = 0
+    while (
+        prefix_len < len(l_tokens)
+        and prefix_len < len(vl_tokens)
+        and l_tokens[prefix_len] == vl_tokens[prefix_len]
+    ):
+        prefix_len += 1
+
+    l_suffix = l_tokens[prefix_len:]
+    vl_suffix = vl_tokens[prefix_len:]
+    image_skip = None
+    for skip in range(0, len(vl_suffix) - len(l_suffix) + 1):
+        if vl_suffix[skip : skip + len(l_suffix)] == l_suffix:
+            image_skip = skip
+            break
+    if image_skip is None:
+        raise ValueError(
+            "Could not align MOMENTS VL suffix with the L suffix. "
+            "The prompt template may have changed."
+        )
+
+    image_start = prefix_len
+    image_end = prefix_len + image_skip
+
+    question_start = _find_subsequence(l_tokens, question_tokens, start=prefix_len)
+    if question_start is None:
+        raise ValueError(
+            "Could not find the fixed MOMENTS question suffix in the tokenized L prompt."
+        )
+
+    pos_mapping = PositionMapping()
+
+    # Shared chat-template prefix.
+    for pos in range(prefix_len):
+        pos_mapping.add(pos, pos)
+
+    # The full text suffix is aligned one-to-one after the inserted image block.
+    for offset in range(len(l_suffix)):
+        pos_mapping.add(prefix_len + offset, image_end + offset)
+
+    # The L-side data segment also maps onto the VL image block, which is the
+    # MOMENTS-specific visual counterpart used by the vision-only analysis.
+    for l_pos in range(prefix_len, question_start):
+        for vl_pos in range(image_start, image_end):
+            pos_mapping.add(l_pos, vl_pos)
+
+    logging.info(
+        "Built MOMENTS alignment for %s: prefix=%d, l_data=[%d, %d), vl_data=[%d, %d), l_seq_len=%d, vl_seq_len=%d",
+        task_name,
+        prefix_len,
+        prefix_len,
+        question_start,
+        image_start,
+        image_end,
+        len(l_tokens),
+        len(vl_tokens),
+    )
+
+    return {
+        "pos_mapping": pos_mapping,
+        "l_data_limits": [prefix_len, question_start],
+        "vl_data_limits": [image_start, image_end],
+        "l_query_limits": [question_start, len(l_tokens)],
+        "vl_query_limits": [image_end, len(vl_tokens)],
+        "prefix_len": prefix_len,
+        "l_seq_len": len(l_tokens),
+        "vl_seq_len": len(vl_tokens),
+    }
 
 
 def convert_components_modality(components, pos_mapping, l_to_vl=True):
