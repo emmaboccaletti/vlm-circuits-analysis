@@ -146,7 +146,7 @@ def load_moments_vl_prompts_list(
     vl_prompts: List[VLPrompt] = []
     total_rows = 0
     kept_rows = 0
-    random_pair_rows = 0
+    alignment_checked_rows = 0
     dropped_length_mismatches = 0
     with open(data_csv_path, "r", newline="") as csvfile:
         reader = csv.DictReader(csvfile)
@@ -209,14 +209,15 @@ def load_moments_vl_prompts_list(
                 "cf_image_paths": cf_image_paths,
             }
 
-            if row.get("cf_mode") == "random_pair" and cf_prompt:
-                random_pair_rows += 1
+            if row.get("cf_mode") in {"random_pair", "language_only", "both"} and cf_prompt:
+                alignment_checked_rows += 1
                 prompt_len = _prompt_token_length(model, prompt, images)
                 cf_prompt_len = _prompt_token_length(model, cf_prompt, cf_images or [])
                 if prompt_len != cf_prompt_len:
                     dropped_length_mismatches += 1
                     logging.info(
-                        "Skipping MOMENTS random_pair row %s/%s/%s due to token-length mismatch (%d vs %d)",
+                        "Skipping MOMENTS %s row %s/%s/%s due to token-length mismatch (%d vs %d)",
+                        row.get("cf_mode"),
                         row.get("clip_id"),
                         row.get("group_idx"),
                         row.get("clip_name"),
@@ -247,11 +248,11 @@ def load_moments_vl_prompts_list(
         kept_rows,
         total_rows - kept_rows,
     )
-    if random_pair_rows > 0:
+    if alignment_checked_rows > 0:
         logging.info(
-            "MOMENTS random_pair rows seen: %d, matched and kept: %d, dropped for token-length mismatch: %d",
-            random_pair_rows,
-            random_pair_rows - dropped_length_mismatches,
+            "MOMENTS aligned counterfactual rows seen: %d, matched and kept: %d, dropped for token-length mismatch: %d",
+            alignment_checked_rows,
+            alignment_checked_rows - dropped_length_mismatches,
             dropped_length_mismatches,
         )
     return vl_prompts
