@@ -105,9 +105,24 @@ def node_attribution_patching_ig(
                     f"clean={tuple(clean_cache[hook.name].shape)}, "
                     f"counterfactual={tuple(cf_cache[hook.name].shape)}"
                 )
-            prompt_specific_attr_scores[hook.name] += (
-                (diff * grad).cpu().squeeze(0)
-            )
+            contribution = (diff * grad).cpu().squeeze(0)
+            if prompt_specific_attr_scores[hook.name].shape != contribution.shape:
+                sample_id = None
+                if vl_prompt.metadata:
+                    sample_id = "/".join(
+                        str(vl_prompt.metadata.get(field, ""))
+                        for field in ("clip_id", "group_idx", "clip_name")
+                    )
+                raise RuntimeError(
+                    "MOMENTS backward-hook accumulation shape mismatch for "
+                    f"sample={sample_id}, hook={hook.name}: "
+                    f"accumulator={tuple(prompt_specific_attr_scores[hook.name].shape)}, "
+                    f"contribution={tuple(contribution.shape)}, "
+                    f"diff={tuple(diff.shape)}, grad={tuple(grad.shape)}, "
+                    f"clean={tuple(clean_cache[hook.name].shape)}, "
+                    f"counterfactual={tuple(cf_cache[hook.name].shape)}"
+                )
+            prompt_specific_attr_scores[hook.name] += contribution
 
         if reset_hooks_pre_fwd:
             model.reset_hooks()
