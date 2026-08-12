@@ -298,6 +298,72 @@ def test_moments_language_length_filter_drops_mismatch():
         os.remove(csv_path)
 
 
+def test_moments_vision_length_filter_drops_mismatch():
+    _install_minimal_shims()
+
+    repo_root = Path(__file__).resolve().parents[3]
+    sys.path.append(str(repo_root / "reproducing_code" / "vlm-circuits-analysis"))
+
+    from moments_utils import load_moments_vl_prompts_list
+
+    sample_frames = (
+        repo_root
+        / "thesis_project"
+        / "data"
+        / "MOMENTS_frames"
+        / "frames"
+        / "0jJj5Mme"
+        / "im"
+        / "1"
+        / "IM_1"
+    )
+    frame_paths = sorted(str(p.resolve()) for p in sample_frames.glob("frame_*.png"))
+    assert len(frame_paths) == 10
+
+    fd, csv_path = tempfile.mkstemp(suffix=".csv")
+    os.close(fd)
+    try:
+        with open(csv_path, "w", newline="") as f:
+            writer = csv.DictWriter(
+                f,
+                fieldnames=[
+                    "clip_id", "group_idx", "clip_name", "event_type", "label",
+                    "similarity", "local_text", "global_text", "prompt",
+                    "image_paths", "answer", "cf_mode", "cf_prompt",
+                    "cf_image_paths", "cf_answer",
+                ],
+            )
+            writer.writeheader()
+            writer.writerow({
+                "clip_id": "clip_a", "group_idx": "1", "clip_name": "IM_1",
+                "event_type": "goal", "label": "goal", "similarity": "1.0",
+                "local_text": "one two", "global_text": "one two",
+                "prompt": "one two", "image_paths": "|".join(frame_paths),
+                "answer": "yes", "cf_mode": "vision_only",
+                "cf_prompt": "one two", "cf_image_paths": "|".join(frame_paths),
+                "cf_answer": "no",
+            })
+
+        class DummyModel:
+            model_name = "llava-1.5"
+
+            def __init__(self):
+                self.calls = 0
+
+            def to_tokens(self, prompt, images=None, prepend_bos=False, truncate=True):
+                length = len(str(prompt).split()) + (len(images) if images else 0)
+                self.calls += 1
+                length += self.calls % 2
+                return types.SimpleNamespace(shape=(1, length))
+
+        prompts = load_moments_vl_prompts_list(
+            csv_path, model=DummyModel(), language_only=False
+        )
+        assert prompts == []
+    finally:
+        os.remove(csv_path)
+
+
 def test_moments_random_pair_builder_same_length_only():
     _install_minimal_shims()
 

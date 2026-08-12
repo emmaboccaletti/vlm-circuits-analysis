@@ -209,7 +209,14 @@ def load_moments_vl_prompts_list(
                 "cf_image_paths": cf_image_paths,
             }
 
-            if row.get("cf_mode") in {"random_pair", "language_only", "both"} and cf_prompt:
+            if row.get("cf_mode") in {
+                "random_pair",
+                "language_only",
+                "vision_only",
+                "both",
+            } and cf_prompt and (
+                row.get("cf_mode") != "vision_only" or cf_image_paths
+            ):
                 alignment_checked_rows += 1
                 prompt_len = _prompt_token_length(model, prompt, images)
                 cf_prompt_len = _prompt_token_length(model, cf_prompt, cf_images or [])
