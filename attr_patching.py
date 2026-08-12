@@ -61,6 +61,24 @@ def node_attribution_patching_ig(
             if should_measure_hook_filter(k)
         }
 
+        cache_shape_mismatches = [
+            (hook_name, tuple(cf_cache[hook_name].shape), tuple(clean_cache[hook_name].shape))
+            for hook_name in clean_cache
+            if hook_name not in cf_cache
+            or cf_cache[hook_name].shape != clean_cache[hook_name].shape
+        ]
+        if cache_shape_mismatches:
+            sample_id = None
+            if vl_prompt.metadata:
+                sample_id = "/".join(
+                    str(vl_prompt.metadata.get(field, ""))
+                    for field in ("clip_id", "group_idx", "clip_name")
+                )
+            raise RuntimeError(
+                "MOMENTS clean/counterfactual cache-shape mismatch for "
+                f"sample={sample_id}: {cache_shape_mismatches}"
+            )
+
         # Calculate the difference between every two parallel activation cache elements
         diff_cache = {}
         for k in clean_cache:
