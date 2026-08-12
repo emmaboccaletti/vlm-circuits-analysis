@@ -90,8 +90,23 @@ def node_attribution_patching_ig(
                 prompt_specific_attr_scores[hook.name] = torch.zeros(
                     clean_cache[hook.name].shape[1:], device="cpu"
                 )
+            diff = diff_cache[hook.name]
+            if diff.shape != grad.shape:
+                sample_id = None
+                if vl_prompt.metadata:
+                    sample_id = "/".join(
+                        str(vl_prompt.metadata.get(field, ""))
+                        for field in ("clip_id", "group_idx", "clip_name")
+                    )
+                raise RuntimeError(
+                    "MOMENTS backward-hook shape mismatch for "
+                    f"sample={sample_id}, hook={hook.name}: "
+                    f"diff={tuple(diff.shape)}, grad={tuple(grad.shape)}, "
+                    f"clean={tuple(clean_cache[hook.name].shape)}, "
+                    f"counterfactual={tuple(cf_cache[hook.name].shape)}"
+                )
             prompt_specific_attr_scores[hook.name] += (
-                (diff_cache[hook.name] * grad).cpu().squeeze(0)
+                (diff * grad).cpu().squeeze(0)
             )
 
         if reset_hooks_pre_fwd:
