@@ -36,9 +36,9 @@ def node_attribution_patching_ig(
 
     vl_prompts_iter = enumerate(tqdm(vl_prompts)) if verbose else enumerate(vl_prompts)
     for idx, vl_prompt in vl_prompts_iter:
-        prompt_specific_attr_scores = {
-            k: torch.zeros_like(v) for k, v in attr_patching_scores.items()
-        }
+        # Sequence lengths vary across MOMENTS transcripts. Keep each prompt's
+        # attribution tensors at their native length and pad only during merging.
+        prompt_specific_attr_scores = {}
 
         label = model.to_tokens(vl_prompt.answer, prepend_bos=False).view(-1, 1)
         cf_label = model.to_tokens(vl_prompt.cf_answer, prepend_bos=False).view(-1, 1)
@@ -203,11 +203,28 @@ def node_attribution_patching_ig(
 
         # Accumulate the attribution scores
         for k in prompt_specific_attr_scores:
+            prompt_scores = prompt_specific_attr_scores[k].abs() / ig_steps
             if k not in attr_patching_scores:
-                attr_patching_scores[k] = torch.zeros_like(
-                    prompt_specific_attr_scores[k]
+                attr_patching_scores[k] = prompt_scores
+                continue
+
+            current_scores = attr_patching_scores[k]
+            target_seq_len = max(current_scores.shape[0], prompt_scores.shape[0])
+            if current_scores.shape[0] < target_seq_len:
+                padded = torch.zeros(
+                    (target_seq_len, *current_scores.shape[1:]),
+                    dtype=current_scores.dtype,
                 )
-            attr_patching_scores[k] += prompt_specific_attr_scores[k].abs() / ig_steps
+                padded[: current_scores.shape[0]] = current_scores
+                current_scores = padded
+            if prompt_scores.shape[0] < target_seq_len:
+                padded = torch.zeros(
+                    (target_seq_len, *prompt_scores.shape[1:]),
+                    dtype=prompt_scores.dtype,
+                )
+                padded[: prompt_scores.shape[0]] = prompt_scores
+                prompt_scores = padded
+            attr_patching_scores[k] = current_scores + prompt_scores
 
     model.reset_hooks()
     model.requires_grad_(False)
