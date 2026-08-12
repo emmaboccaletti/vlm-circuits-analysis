@@ -201,6 +201,19 @@ def run_and_ablate(
             else:
                 pos = hooked_comp.pos
 
+            # Circuit positions come from the longest discovery prompt, while
+            # evaluation prompts can be shorter. Such positions do not exist
+            # for the current prompt and must not be indexed.
+            if isinstance(pos, int):
+                if pos < -value.shape[1] or pos >= value.shape[1]:
+                    continue
+            elif isinstance(pos, slice):
+                start = 0 if pos.start is None else max(0, pos.start)
+                stop = value.shape[1] if pos.stop is None else min(value.shape[1], pos.stop)
+                if start >= stop:
+                    continue
+                pos = slice(start, stop, pos.step)
+
             pos_and_neurons_agnostic_comp = Component(
                 hooked_comp.hook_name,
                 layer=hooked_comp.layer,
