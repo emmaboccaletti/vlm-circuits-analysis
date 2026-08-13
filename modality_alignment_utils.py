@@ -241,6 +241,13 @@ def get_moments_alignment_info(model, l_prompt, vl_prompt, task_name):
     for offset in range(len(l_suffix)):
         pos_mapping.add(prefix_len + offset, image_end + offset)
 
+    # The multimodal Qwen chat template appends an assistant-generation
+    # marker that is absent from the raw language-only prompt. Treat these
+    # template-only positions as part of the final language query boundary.
+    mapped_vl_end = image_end + len(l_suffix)
+    for vl_pos in range(mapped_vl_end, len(vl_tokens)):
+        pos_mapping.add(len(l_tokens) - 1, vl_pos)
+
     # The L-side data segment also maps onto the VL image block, which is the
     # MOMENTS-specific visual counterpart used by the vision-only analysis.
     for l_pos in range(prefix_len, question_start):
