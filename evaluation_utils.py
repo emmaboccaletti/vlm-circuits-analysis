@@ -22,6 +22,7 @@ def circuit_faithfulness(
     limited_labels: Optional[torch.Tensor] = None,
     batch_size: int = 1,
     verbose: bool = True,
+    return_details: bool = False,
 ):
     """
     Calculate the faithfulness of the circuit w.r.t to the entire model.
@@ -33,6 +34,7 @@ def circuit_faithfulness(
     model.cfg.ungroup_grouped_query_attention = True
 
     scores = torch.zeros(len(vl_prompts))
+    details = []
     dataloader = torch.utils.data.DataLoader(
         vl_prompts, batch_size=batch_size, shuffle=False, collate_fn=vlp_collate_fn
     )
@@ -140,6 +142,29 @@ def circuit_faithfulness(
                 cf_answers_batch,
             )
             batch_scores = (ablated_ld - bad_baseline_ld) / (good_ld - bad_baseline_ld)
+            if return_details:
+                for offset in range(batch_scores.shape[0]):
+                    prompt_index = idx * batch_size + offset
+                    prompt = vl_prompts[prompt_index]
+                    details.append(
+                        {
+                            "prompt_index": prompt_index,
+                            "clip_id": (prompt.metadata or {}).get("clip_id"),
+                            "group_idx": (prompt.metadata or {}).get("group_idx"),
+                            "clip_name": (prompt.metadata or {}).get("clip_name"),
+                            "good_ld": float(good_ld[offset].detach().cpu()),
+                            "bad_ld": float(bad_baseline_ld[offset].detach().cpu()),
+                            "ablated_ld": float(ablated_ld[offset].detach().cpu()),
+                            "denominator": float(
+                                (good_ld[offset] - bad_baseline_ld[offset])
+                                .detach()
+                                .cpu()
+                            ),
+                            "normalized_score": float(
+                                batch_scores[offset].detach().cpu()
+                            ),
+                        }
+                    )
         elif metric == "acc":
             if limited_labels is not None:
                 limited_labels = limited_labels.to(good_baseline_logits.device).view(-1)
@@ -175,6 +200,8 @@ def circuit_faithfulness(
 
         scores[idx * batch_size : (idx + 1) * batch_size] = batch_scores
 
+    if return_details:
+        return scores.mean(), details
     return scores.mean()
 
 
