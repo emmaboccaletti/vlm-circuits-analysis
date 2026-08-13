@@ -217,8 +217,18 @@ def get_moments_alignment_info(model, l_prompt, vl_prompt, task_name):
 
     question_start = _find_subsequence(l_tokens, question_tokens, start=prefix_len)
     if question_start is None:
-        raise ValueError(
-            "Could not find the fixed MOMENTS question suffix in the tokenized L prompt."
+        # Some Qwen tokenization paths do not preserve the exact standalone
+        # token sequence for the question string, even though the prompt still
+        # ends with the same question text. For MOMENTS we prefer a safe
+        # suffix-based fallback over failing the whole analysis.
+        question_start = len(l_tokens) - len(question_tokens)
+        if question_start < prefix_len:
+            raise ValueError(
+                "Could not derive the MOMENTS question suffix position from the tokenized L prompt."
+            )
+        logging.warning(
+            "Falling back to suffix-length MOMENTS alignment for %s because the fixed question tokens were not found as an exact subsequence.",
+            task_name,
         )
 
     pos_mapping = PositionMapping()
