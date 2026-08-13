@@ -126,6 +126,7 @@ def load_moments_vl_prompts_list(
     correct_preds_only: bool = True,
     image_size=None,
     max_images: Optional[int] = None,
+    check_counterfactual_alignment: bool = True,
 ) -> List[VLPrompt]:
     """
     Load MOMENTS prompts from a CSV produced by create_moments_dataset.py.
@@ -133,6 +134,10 @@ def load_moments_vl_prompts_list(
     For MOMENTS we do not rely on model-generated predictions, so
     `correct_preds_only` is intentionally ignored. The argument is kept for API
     compatibility with the other task loaders.
+
+    Set `check_counterfactual_alignment=False` for clean behavioral evaluation,
+    where a clean row should not be excluded because its unused counterfactual
+    has a token-length mismatch.
     """
     if not os.path.exists(data_csv_path):
         raise FileNotFoundError(f"Missing MOMENTS CSV: {data_csv_path}")
@@ -209,7 +214,7 @@ def load_moments_vl_prompts_list(
                 "cf_image_paths": cf_image_paths,
             }
 
-            if row.get("cf_mode") in {
+            if check_counterfactual_alignment and row.get("cf_mode") in {
                 "random_pair",
                 "language_only",
                 "vision_only",
