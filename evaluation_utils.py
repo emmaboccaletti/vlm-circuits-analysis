@@ -200,6 +200,12 @@ def circuit_faithfulness(
 
         scores[idx * batch_size : (idx + 1) * batch_size] = batch_scores
 
+        # Release the previous sample's GPU tensors before the next sample
+        # builds its counterfactual cache. This matters for large circuits.
+        del ablation_cache
+        del good_baseline_logits, bad_baseline_logits, ablated_logits
+        torch.cuda.empty_cache()
+
     if return_details:
         return scores.mean(), details
     return scores.mean()
