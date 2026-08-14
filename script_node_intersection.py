@@ -3,6 +3,7 @@ import torch
 import argparse
 import logging
 import random
+import os
 
 try:
     sys.path.append("third_party/TransformerLens")
