@@ -68,6 +68,15 @@ def parse_args():
             "data/<task>/results/<model>/ when omitted."
         ),
     )
+    parser.add_argument(
+        "--output_file",
+        type=str,
+        default=None,
+        help=(
+            "Path to the intersection output file. Defaults to the legacy "
+            "shared result path when omitted."
+        ),
+    )
     args = parser.parse_args()
     return args
 
@@ -448,8 +457,11 @@ def get_full_intersection_dict(
 
 def analyze_circuit_intersections(model, args, pos_mapping, moments_alignment_info=None):
     intersection_results_path = (
-        f"./data/{args.task_name}/results/{args.model_name}/intersection_results.pt"
+        args.output_file
+        if args.output_file is not None
+        else f"./data/{args.task_name}/results/{args.model_name}/intersection_results.pt"
     )
+    os.makedirs(os.path.dirname(intersection_results_path), exist_ok=True)
 
     # Load L and VL node scores
     logging.info(f"Loading L and VL scores")

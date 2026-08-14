@@ -162,7 +162,12 @@ def analyze_cross_modality_DQL_interchange_faithfulness(
 
     for eval_metric in METRICS:
         logging.info(f"Analyzing {eval_metric=}")
-        interchange_results_path = f"./data/{args.task_name}/results/{args.model_name}/faithfulness_nodes_cross_interchanges_{eval_metric}.pt"
+        interchange_results_path = (
+            args.output_file
+            if args.output_file is not None
+            else f"./data/{args.task_name}/results/{args.model_name}/faithfulness_nodes_cross_interchanges_{eval_metric}.pt"
+        )
+        os.makedirs(os.path.dirname(interchange_results_path), exist_ok=True)
         if os.path.exists(interchange_results_path):
             results_dict = torch.load(interchange_results_path)
             if all([k in results_dict for k in MANDATORY_KEYS]):
@@ -472,6 +477,15 @@ def parse_args():
         help=(
             "Directory containing both ig=5 node score files. Defaults to "
             "data/<task>/results/<model>/ when omitted."
+        ),
+    )
+    parser.add_argument(
+        "--output_file",
+        type=str,
+        default=None,
+        help=(
+            "Path to the cross-modality faithfulness output file. Defaults to "
+            "the legacy shared result path when omitted."
         ),
     )
     parser.add_argument(
