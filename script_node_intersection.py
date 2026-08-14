@@ -59,6 +59,15 @@ def parse_args():
         default="vision_only",
         help="Counterfactual mode to use for MOMENTS tasks.",
     )
+    parser.add_argument(
+        "--scores_dir",
+        type=str,
+        default=None,
+        help=(
+            "Directory containing both ig=5 node score files. Defaults to "
+            "data/<task>/results/<model>/ when omitted."
+        ),
+    )
     args = parser.parse_args()
     return args
 
@@ -444,7 +453,12 @@ def analyze_circuit_intersections(model, args, pos_mapping, moments_alignment_in
 
     # Load L and VL node scores
     logging.info(f"Loading L and VL scores")
-    l_scores, vl_scores = load_l_vl_scores(args.task_name, args.model_name, METRIC)
+    l_scores, vl_scores = load_l_vl_scores(
+        args.task_name,
+        args.model_name,
+        METRIC,
+        scores_dir=args.scores_dir,
+    )
     result_dict = get_full_intersection_dict(
         model,
         l_scores,

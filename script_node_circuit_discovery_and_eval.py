@@ -57,7 +57,10 @@ def analyze_faithfulness(
         seq_len = scores[f"blocks.0.attn.hook_z"].shape[0]
 
         logging.info(f"Analysing faithfulness for metric {metric}")
-        faithfulness_results_path = f"./data/{args.task_name}/results/{args.model_name}/faithfulness_{metric}_{'l' if args.language_only else 'vl'}_node_circuit.pt"
+        faithfulness_results_path = os.path.join(
+            args.output_dir,
+            f"faithfulness_{metric}_{'l' if args.language_only else 'vl'}_node_circuit.pt",
+        )
         if os.path.exists(faithfulness_results_path):
             percentages, faiths_cf_ablations, faiths_completed_mask = torch.load(
                 faithfulness_results_path, weights_only=True
@@ -166,6 +169,15 @@ def parse_args():
         help="Counterfactual mode to use for MOMENTS tasks.",
     )
     parser.add_argument(
+        "--output_dir",
+        type=str,
+        default=None,
+        help=(
+            "Directory for node scores and faithfulness results. If omitted, "
+            "uses data/<task>/results/<model>/."
+        ),
+    )
+    parser.add_argument(
         "--moments_max_images",
         type=int,
         default=None,
@@ -184,6 +196,11 @@ def parse_args():
 def main():
     logging.info("Running script_node_circuit_discovery_and_eval.py")
     args = parse_args()
+
+    if args.output_dir is None:
+        args.output_dir = f"./data/{args.task_name}/results/{args.model_name}"
+    os.makedirs(args.output_dir, exist_ok=True)
+    logging.info("Saving node-circuit outputs to %s", args.output_dir)
 
     set_deterministic(args.seed)
 
@@ -224,7 +241,11 @@ def main():
     )
 
     # Run node attribution patching on prompts or load pre-calculated results
-    nap_ig_results_path = f"./data/{args.task_name}/results/{args.model_name}/node_scores/nap_ig_{'l' if args.language_only else 'vl'}_ig={args.ap_ig_steps}_metric={{metric}}.pt"
+    nap_ig_results_path = os.path.join(
+        args.output_dir,
+        "node_scores",
+        f"nap_ig_{'l' if args.language_only else 'vl'}_ig={args.ap_ig_steps}_metric={{metric}}.pt",
+    )
     model.cfg.ungroup_grouped_query_attention = True
     model.set_use_split_qkv_input(True)
     model.set_use_attn_result(True)

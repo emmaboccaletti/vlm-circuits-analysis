@@ -3,6 +3,7 @@
 #
 
 import logging
+import os
 import sys
 from typing import Union
 
@@ -478,21 +479,30 @@ def load_dataset(
     return original_vl_prompts, vl_prompts, eval_vl_prompts
 
 
-def load_l_vl_scores(task_name, model_name, metric="LD"):
+def load_l_vl_scores(task_name, model_name, metric="LD", scores_dir=None):
     """
-    Load the L and VL node attribution scores scores for a given model, task and metric.
+    Load L and VL node attribution scores for a task and metric.
+
+    ``scores_dir`` can point to a mode-specific MOMENTS result directory.
+    When omitted, the historical canonical model result directory is used.
     """
-    logging.info(f"Loading L and VL scores")
+    logging.info("Loading L and VL scores from %s", scores_dir or "canonical model directory")
     model_name_fs = model_name.replace("/", "__")
-    l_scores = torch.load(
-        f"./data/{task_name}/results/{model_name_fs}/node_scores/nap_ig_l_ig=5_metric={metric}.pt",
-        weights_only=True,
-    )
+    if scores_dir is None:
+        scores_dir = f"./data/{task_name}/results/{model_name_fs}"
+
+    l_path = f"{scores_dir}/node_scores/nap_ig_l_ig=5_metric={metric}.pt"
+    vl_path = f"{scores_dir}/node_scores/nap_ig_vl_ig=5_metric={metric}.pt"
+    missing = [path for path in (l_path, vl_path) if not os.path.isfile(path)]
+    if missing:
+        raise FileNotFoundError(
+            "Cross-modal analysis requires both ig=5 score files. Missing: "
+            + ", ".join(missing)
+        )
+
+    l_scores = torch.load(l_path, weights_only=True)
     l_scores = {k: v.abs() for k, v in l_scores.items()}
-    vl_scores = torch.load(
-        f"./data/{task_name}/results/{model_name_fs}/node_scores/nap_ig_vl_ig=5_metric={metric}.pt",
-        weights_only=True,
-    )
+    vl_scores = torch.load(vl_path, weights_only=True)
     vl_scores = {k: v.abs() for k, v in vl_scores.items()}
     return l_scores, vl_scores
 

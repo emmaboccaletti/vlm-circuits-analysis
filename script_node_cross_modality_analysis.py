@@ -115,7 +115,10 @@ def analyze_cross_modality_DQL_interchange_faithfulness(
     # Load L and VL node scores
     logging.info(f"Loading L and VL scores ({discovery_metric=})")
     l_scores, vl_scores = load_l_vl_scores(
-        args.task_name, args.model_name, discovery_metric
+        args.task_name,
+        args.model_name,
+        discovery_metric,
+        scores_dir=args.scores_dir,
     )
     l_seq_len = l_scores[f"blocks.0.attn.hook_z"].shape[0]
     vl_seq_len = vl_scores[f"blocks.0.attn.hook_z"].shape[0]
@@ -461,6 +464,15 @@ def parse_args():
         choices=["random_pair", "language_only", "vision_only", "both"],
         default="vision_only",
         help="Counterfactual mode to use for MOMENTS tasks.",
+    )
+    parser.add_argument(
+        "--scores_dir",
+        type=str,
+        default=None,
+        help=(
+            "Directory containing both ig=5 node score files. Defaults to "
+            "data/<task>/results/<model>/ when omitted."
+        ),
     )
     parser.add_argument(
         "--l_circuit_percentage",
