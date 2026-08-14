@@ -203,6 +203,12 @@ def backpatching(
     return acc, cached_activations
 
 
+def get_results_path(args):
+    if args.output_dir is not None:
+        return os.path.join(args.output_dir, "backpatching_results.pt")
+    return f"./data/{args.task_name}/results/{args.model_name}/backpatching_results.pt"
+
+
 def looped_backpatching(
     model,
     args,
@@ -380,6 +386,15 @@ def parse_args():
     parser.add_argument(
         "--dst_layer_range", type=int, nargs=2, help="The layer range to backpatch to"
     )
+    parser.add_argument(
+        "--output_dir",
+        type=str,
+        default=None,
+        help=(
+            "Directory in which to store backpatching_results.pt. Defaults to "
+            "the legacy shared result path when omitted."
+        ),
+    )
 
     args = parser.parse_args()
     return args
@@ -436,9 +451,7 @@ def main():
         )
 
     # Backpatching experiments
-    results_path = (
-        f"./data/{args.task_name}/results/{args.model_name}/backpatching_results.pt"
-    )
+    results_path = get_results_path(args)
     if os.path.exists(results_path):
         logging.info(f"Results already exist at {results_path}. Loading them")
         results_dict, src_layer_range, dst_layer_range = torch.load(results_path)
