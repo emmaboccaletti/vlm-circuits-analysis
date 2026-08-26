@@ -136,6 +136,9 @@ def split_to_d_q_g(components, seq_len, is_language, args, moments_d_limits=None
     Returns:
         tuple: Three lists of components: D, Q and G.
     """
+    if not components:
+        return [], [], []
+
     if moments_d_limits is not None:
         D_limits = moments_d_limits
     elif is_language:
@@ -169,6 +172,9 @@ def remove_pos_info(comps):
     Returns:
         list: List of components (or lpn tuples) with position information removed.
     """
+
+    if not comps:
+        return []
 
     if isinstance(comps[0], Component):
         return [
@@ -299,6 +305,11 @@ def get_full_intersection_dict(
         ),
     )
 
+    if len(vl_D_heads) == 0:
+        logging.warning(
+            "No selected VL heads fall into the D span for this run; vl_D_heads is empty."
+        )
+
     vl_D_neurons, vl_Q_neurons, vl_G_neurons = split_to_d_q_g(
         vl_circuit_neurons,
         vl_seq_len,
@@ -412,6 +423,18 @@ def get_full_intersection_dict(
     result_dict = {
         "l_percent": args.l_circuit_percentage,
         "vl_percent": args.vl_circuit_percentage,
+        "l_D_heads_count": len(l_D_heads),
+        "vl_D_heads_count": len(vl_D_heads),
+        "l_Q_heads_count": len(l_Q_heads),
+        "vl_Q_heads_count": len(vl_Q_heads),
+        "l_G_heads_count": len(l_G_heads),
+        "vl_G_heads_count": len(vl_G_heads),
+        "l_D_neurons_count": len(l_D_neurons),
+        "vl_D_neurons_count": len(vl_D_neurons),
+        "l_Q_neurons_count": len(l_Q_neurons),
+        "vl_Q_neurons_count": len(vl_Q_neurons),
+        "l_G_neurons_count": len(l_G_neurons),
+        "vl_G_neurons_count": len(vl_G_neurons),
         "vl_head_iou": vl_head_iou,
         "l_head_iou": l_head_iou,
         "vl_mlp_iou": vl_neurons_iou,
@@ -453,6 +476,21 @@ def get_full_intersection_dict(
         "vl_D_neurons_baseline_no_pos": vl_D_neurons_baseline_no_pos,
         "l_D_neurons_baseline_no_pos": l_D_neurons_baseline_no_pos,
     }
+    result_dict["empty_partitions"] = {
+        "l_D_heads": len(l_D_heads) == 0,
+        "vl_D_heads": len(vl_D_heads) == 0,
+        "l_Q_heads": len(l_Q_heads) == 0,
+        "vl_Q_heads": len(vl_Q_heads) == 0,
+        "l_G_heads": len(l_G_heads) == 0,
+        "vl_G_heads": len(vl_G_heads) == 0,
+        "l_D_neurons": len(l_D_neurons) == 0,
+        "vl_D_neurons": len(vl_D_neurons) == 0,
+        "l_Q_neurons": len(l_Q_neurons) == 0,
+        "vl_Q_neurons": len(vl_Q_neurons) == 0,
+        "l_G_neurons": len(l_G_neurons) == 0,
+        "vl_G_neurons": len(vl_G_neurons) == 0,
+    }
+    logging.warning(f"Empty intersection partitions: {result_dict['empty_partitions']}")
     return result_dict
 
 
