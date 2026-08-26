@@ -59,7 +59,6 @@ import torch
 import transformer_lens as lens
 from transformers import (
     Qwen2VLForConditionalGeneration,
-    Qwen3VLForConditionalGeneration,
     Gemma3ForConditionalGeneration,
     MllamaForConditionalGeneration,
     LlavaForConditionalGeneration,
@@ -67,6 +66,11 @@ from transformers import (
     AutoTokenizer,
     AutoModelForCausalLM,
 )
+
+try:
+    from transformers import Qwen3VLForConditionalGeneration
+except ImportError:
+    Qwen3VLForConditionalGeneration = None
 
 
 SUPPORTED_TASKS = [
@@ -118,11 +122,15 @@ def load_model(
         return model, processor
 
     elif "qwen" in model_name.lower():
-        qwen_cls = (
-            Qwen3VLForConditionalGeneration
-            if "qwen3" in model_name.lower()
-            else Qwen2VLForConditionalGeneration
-        )
+        if "qwen3" in model_name.lower():
+            if Qwen3VLForConditionalGeneration is None:
+                raise ImportError(
+                    "Qwen3VLForConditionalGeneration is not available in this transformers install. "
+                    "Use a transformers version that provides Qwen3-VL support, or run a Qwen2/Qwen2.5 model instead."
+                )
+            qwen_cls = Qwen3VLForConditionalGeneration
+        else:
+            qwen_cls = Qwen2VLForConditionalGeneration
         inner_model = qwen_cls.from_pretrained(
             model_path,
             torch_dtype=torch_dtype,
