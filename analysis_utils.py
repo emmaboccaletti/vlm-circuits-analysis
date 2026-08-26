@@ -59,6 +59,7 @@ import torch
 import transformer_lens as lens
 from transformers import (
     Qwen2VLForConditionalGeneration,
+    Qwen3VLForConditionalGeneration,
     Gemma3ForConditionalGeneration,
     MllamaForConditionalGeneration,
     LlavaForConditionalGeneration,
@@ -117,7 +118,12 @@ def load_model(
         return model, processor
 
     elif "qwen" in model_name.lower():
-        inner_model = Qwen2VLForConditionalGeneration.from_pretrained(
+        qwen_cls = (
+            Qwen3VLForConditionalGeneration
+            if "qwen3" in model_name.lower()
+            else Qwen2VLForConditionalGeneration
+        )
+        inner_model = qwen_cls.from_pretrained(
             model_path,
             torch_dtype=torch_dtype,
             device_map="cpu",
