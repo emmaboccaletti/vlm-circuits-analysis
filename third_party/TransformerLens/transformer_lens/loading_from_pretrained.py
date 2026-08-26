@@ -232,6 +232,7 @@ OFFICIAL_MODEL_NAMES = [
     "google/gemma-2-27b",
     "google/gemma-2-27b-it",
     "google/gemma-3-12b-it",
+    "Qwen/Qwen3-VL-8B-Instruct",
     "01-ai/Yi-6B",
     "01-ai/Yi-34B",
     "01-ai/Yi-6B-Chat",
@@ -252,6 +253,7 @@ MODEL_ALIASES = {
     "meta-llama/Llama-3.2-11B-Vision": ["llama3.2-11b"],
     "meta-llama/Llama-3.2-11B-Vision-Instruct": ["llama3.2-11b-instruct"],
     "Qwen/Qwen2-VL-7B-Instruct": ["qwen2-7b-vl-instruct", "qwen2-vl-7b-instruct"],
+    "Qwen/Qwen3-VL-8B-Instruct": ["qwen3-8b-vl-instruct", "qwen3-vl-8b-instruct"],
     "mistralai/Pixtral-12B-2409": ["pixtral-12b"],
     "llava-hf/llava-1.5-7b-hf": ["llava-1.5-7b"],
     "NeelNanda/SoLU_1L_v9_old": ["solu-1l-pile", "solu-1l-old"],
@@ -1959,7 +1961,10 @@ def get_pretrained_state_dict(
             state_dict = convert_gemma3_weights(hf_model, cfg)
         elif cfg.original_architecture == "MllamaForConditionalGeneration":
             state_dict = convert_mllama_weights(hf_model, cfg)
-        elif cfg.original_architecture == "Qwen2VLForConditionalGeneration":
+        elif cfg.original_architecture in (
+            "Qwen2VLForConditionalGeneration",
+            "Qwen3VLForConditionalGeneration",
+        ):
             state_dict = convert_qwen2vl_weights(hf_model, cfg)
         elif cfg.original_architecture == "LlavaForConditionalGeneration":
             if "pixtral" in cfg.model_name.lower():
