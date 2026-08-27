@@ -9,6 +9,11 @@ def convert_qwen3vl_weights(qwen, cfg: HookedTransformerConfig):
 
     text_model = qwen.model.language_model
 
+    def maybe_zero_bias(bias, size):
+        if bias is None:
+            return torch.zeros(size, dtype=cfg.dtype)
+        return bias
+
     state_dict["embed.W_E"] = text_model.embed_tokens.weight
 
     assert cfg.d_mlp is not None  # keep mypy happy
@@ -40,21 +45,27 @@ def convert_qwen3vl_weights(qwen, cfg: HookedTransformerConfig):
         state_dict[f"blocks.{l}.attn._W_K"] = W_K
         state_dict[f"blocks.{l}.attn._W_V"] = W_V
 
-        b_Q = text_model.layers[l].self_attn.q_proj.bias
+        b_Q = maybe_zero_bias(text_model.layers[l].self_attn.q_proj.bias, cfg.n_heads * cfg.d_head)
         b_Q = einops.rearrange(
             b_Q,
             "(n_head d_head) -> n_head d_head",
             n_head=cfg.n_heads,
         )
 
-        b_K = text_model.layers[l].self_attn.k_proj.bias
+        b_K = maybe_zero_bias(
+            text_model.layers[l].self_attn.k_proj.bias,
+            cfg.n_key_value_heads * cfg.d_head,
+        )
         b_K = einops.rearrange(
             b_K,
             "(n_head d_head) -> n_head d_head",
             n_head=cfg.n_key_value_heads,
         )
 
-        b_V = text_model.layers[l].self_attn.v_proj.bias
+        b_V = maybe_zero_bias(
+            text_model.layers[l].self_attn.v_proj.bias,
+            cfg.n_key_value_heads * cfg.d_head,
+        )
         b_V = einops.rearrange(
             b_V,
             "(n_head d_head) -> n_head d_head",
