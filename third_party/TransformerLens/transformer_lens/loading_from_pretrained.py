@@ -1378,7 +1378,6 @@ def convert_hf_model_config(model_name: str, **kwargs):
             "gated_mlp": True,
             "thw_rotary": True,
             "thw_rotary_pe_sections": rope_scaling.get("mrope_section", [24, 20, 20]),
-            "thw_rotary_interleaved": rope_scaling.get("mrope_interleaved", True),
             "image_token_id": hf_config.image_token_id,
         }
     elif architecture == "PhiForCausalLM":
