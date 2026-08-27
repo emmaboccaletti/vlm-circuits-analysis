@@ -29,6 +29,8 @@ def convert_qwen3vl_weights(qwen, cfg: HookedTransformerConfig):
             pos_ids,
         )
         cos, sin = pos_embed
+        cos = cos.unsqueeze(0).repeat(3, 1, 1, 1)
+        sin = sin.unsqueeze(0).repeat(3, 1, 1, 1)
         state_dict[f"blocks.{l}.attn.rotary_cos"] = cos.to(cfg.device)
         state_dict[f"blocks.{l}.attn.rotary_sin"] = sin.to(cfg.device)
 
