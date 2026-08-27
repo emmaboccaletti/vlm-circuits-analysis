@@ -643,6 +643,11 @@ class HookedVLTransformer(HookedRootModule):
                             hidden_states=pixel_values.to(self.vision_model.device),
                             grid_thw=image_grid_thw,
                         )
+                        if "qwen3" in self.cfg.model_name.lower():
+                            if isinstance(image_embeds, tuple):
+                                image_embeds = image_embeds[0]
+                            elif hasattr(image_embeds, "last_hidden_state"):
+                                image_embeds = image_embeds.last_hidden_state
                     elif "pixtral" in self.cfg.model_name.lower():
                         # Because fuck mistral's wrapper not following conventions
                         # pixel_values = pixel_values[0][0].unsqueeze(0) # Fixed in transformers somewhere between 4.47.0-4.49.0
