@@ -24,6 +24,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--model_name", default="qwen2-7b-vl-instruct")
     parser.add_argument("--model_path", required=True)
     parser.add_argument(
+        "--torch_dtype",
+        default="float32",
+        choices=["float32", "float16", "bfloat16"],
+        help="Torch dtype used when loading the model.",
+    )
+    parser.add_argument(
         "--csv",
         default="data/moments_goal/vision_only_data.csv",
         help="CSV providing clean prompts and labels.",
@@ -56,6 +62,7 @@ def main() -> None:
     args = parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
     device = "cuda" if torch.cuda.is_available() else "cpu"
+    torch_dtype = getattr(torch, args.torch_dtype)
 
     model, processor = load_model(
         args.model_name,
@@ -63,6 +70,7 @@ def main() -> None:
         device=device,
         use_tlens_wrapper=True,
         extra_hooks=False,
+        torch_dtype=torch_dtype,
     )
     model.eval()
     label_ids = canonical_token_ids(model, processor)
