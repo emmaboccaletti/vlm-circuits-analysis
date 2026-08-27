@@ -1351,7 +1351,7 @@ def convert_hf_model_config(model_name: str, **kwargs):
         }
     elif architecture == "Qwen3VLForConditionalGeneration":
         text_config = hf_config.text_config
-        rope_parameters = getattr(text_config, "rope_parameters", None) or {}
+        rope_scaling = getattr(text_config, "rope_scaling", None) or {}
         head_dim = getattr(text_config, "head_dim", None) or (
             text_config.hidden_size // text_config.num_attention_heads
         )
@@ -1370,14 +1370,15 @@ def convert_hf_model_config(model_name: str, **kwargs):
             "initializer_range": text_config.initializer_range,
             "normalization_type": "RMS",
             "positional_embedding_type": "rotary",
-            "rotary_base": rope_parameters.get("rope_theta", 500000.0),
+            "rotary_base": getattr(text_config, "rope_theta", 5000000),
             "rotary_adjacent_pairs": False,
             "rotary_dim": head_dim,
             "tokenizer_prepends_bos": True,
             "final_rms": True,
             "gated_mlp": True,
             "thw_rotary": True,
-            "thw_rotary_pe_sections": [16, 24, 24],
+            "thw_rotary_pe_sections": rope_scaling.get("mrope_section", [24, 20, 20]),
+            "thw_rotary_interleaved": rope_scaling.get("mrope_interleaved", True),
             "image_token_id": hf_config.image_token_id,
         }
     elif architecture == "PhiForCausalLM":
