@@ -1349,6 +1349,32 @@ def convert_hf_model_config(model_name: str, **kwargs):
             "thw_rotary_pe_sections": [16, 24, 24],
             "image_token_id": hf_config.image_token_id,
         }
+    elif architecture == "Qwen3VLForConditionalGeneration":
+        cfg_dict = {
+            "d_model": hf_config.hidden_size,
+            "d_head": hf_config.hidden_size // hf_config.num_attention_heads,
+            "n_heads": hf_config.num_attention_heads,
+            "n_key_value_heads": hf_config.num_key_value_heads,
+            "d_mlp": hf_config.intermediate_size,
+            "n_layers": hf_config.num_hidden_layers,
+            "n_ctx": 2048,  # capped because the full context is much larger
+            "eps": hf_config.rms_norm_eps,
+            "d_vocab": hf_config.vocab_size,
+            "act_fn": hf_config.hidden_act,
+            "use_attn_scale": True,
+            "initializer_range": hf_config.initializer_range,
+            "normalization_type": "RMS",
+            "positional_embedding_type": "rotary",
+            "rotary_base": hf_config.rope_theta,
+            "rotary_adjacent_pairs": False,
+            "rotary_dim": hf_config.hidden_size // hf_config.num_attention_heads,
+            "tokenizer_prepends_bos": True,
+            "final_rms": True,
+            "gated_mlp": True,
+            "thw_rotary": True,
+            "thw_rotary_pe_sections": [16, 24, 24],
+            "image_token_id": hf_config.image_token_id,
+        }
     elif architecture == "PhiForCausalLM":
         # Architecture for microsoft/phi models
         cfg_dict = {
