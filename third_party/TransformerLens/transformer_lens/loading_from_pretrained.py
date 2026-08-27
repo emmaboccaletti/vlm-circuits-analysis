@@ -1351,9 +1351,13 @@ def convert_hf_model_config(model_name: str, **kwargs):
         }
     elif architecture == "Qwen3VLForConditionalGeneration":
         text_config = hf_config.text_config
+        rope_parameters = getattr(text_config, "rope_parameters", None) or {}
+        head_dim = getattr(text_config, "head_dim", None) or (
+            text_config.hidden_size // text_config.num_attention_heads
+        )
         cfg_dict = {
             "d_model": text_config.hidden_size,
-            "d_head": text_config.hidden_size // text_config.num_attention_heads,
+            "d_head": head_dim,
             "n_heads": text_config.num_attention_heads,
             "n_key_value_heads": text_config.num_key_value_heads,
             "d_mlp": text_config.intermediate_size,
@@ -1366,9 +1370,9 @@ def convert_hf_model_config(model_name: str, **kwargs):
             "initializer_range": text_config.initializer_range,
             "normalization_type": "RMS",
             "positional_embedding_type": "rotary",
-            "rotary_base": text_config.rope_parameters["rope_theta"],
+            "rotary_base": rope_parameters.get("rope_theta", 500000.0),
             "rotary_adjacent_pairs": False,
-            "rotary_dim": text_config.hidden_size // text_config.num_attention_heads,
+            "rotary_dim": head_dim,
             "tokenizer_prepends_bos": True,
             "final_rms": True,
             "gated_mlp": True,
