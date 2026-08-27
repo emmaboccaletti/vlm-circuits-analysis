@@ -4,18 +4,17 @@ import torch
 from transformer_lens.HookedTransformerConfig import HookedTransformerConfig
 
 
-def convert_qwen2vl_weights(qwen, cfg: HookedTransformerConfig):
+def convert_qwen3vl_weights(qwen, cfg: HookedTransformerConfig):
     state_dict = {}
 
-    text_model = getattr(qwen.model, "language_model", qwen.model)
+    text_model = qwen.model.language_model
 
     state_dict["embed.W_E"] = text_model.embed_tokens.weight
 
     assert cfg.d_mlp is not None  # keep mypy happy
 
     for l in range(cfg.n_layers):
-        # HACK to get the positional embeddings from HF model (theres currently a bug in the TLens implementation)
-        # Code taken from transformers.modeling_qwen2_vl.Qwen2VLModel.forward
+        # HACK to get the positional embeddings from HF model (there's currently a bug in the TLens implementation)
         pos_ids = torch.arange(cfg.n_ctx, device=qwen.device)
         pos_ids = pos_ids.view(1, 1, -1).repeat(
             3, 1, 1

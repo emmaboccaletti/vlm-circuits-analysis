@@ -20,6 +20,7 @@ from .t5 import convert_t5_weights
 from .neel_solu_old import convert_neel_solu_old_weights
 from .mllama import convert_mllama_weights
 from .qwen2vl import convert_qwen2vl_weights
+from .qwen3vl import convert_qwen3vl_weights
 from .pixtral import convert_pixtral_weights
 from .llava_1_5 import convert_llava_1_5_weights
 from .gemma3 import convert_gemma3_weights

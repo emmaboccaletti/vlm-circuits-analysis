@@ -41,6 +41,7 @@ from transformer_lens.pretrained.weight_conversions import (
     convert_phi3_weights,
     convert_phi_weights,
     convert_qwen2vl_weights,
+    convert_qwen3vl_weights,
     convert_pixtral_weights,
     convert_llava_1_5_weights,
     convert_qwen2_weights,
@@ -1994,9 +1995,10 @@ def get_pretrained_state_dict(
             state_dict = convert_mllama_weights(hf_model, cfg)
         elif cfg.original_architecture in (
             "Qwen2VLForConditionalGeneration",
-            "Qwen3VLForConditionalGeneration",
         ):
             state_dict = convert_qwen2vl_weights(hf_model, cfg)
+        elif cfg.original_architecture == "Qwen3VLForConditionalGeneration":
+            state_dict = convert_qwen3vl_weights(hf_model, cfg)
         elif cfg.original_architecture == "LlavaForConditionalGeneration":
             if "pixtral" in cfg.model_name.lower():
                 state_dict = convert_pixtral_weights(hf_model, cfg)
