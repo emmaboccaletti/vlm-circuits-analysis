@@ -189,6 +189,12 @@ def parse_args():
         default=None,
         help="If set, cap the total MOMENTS prompt count used for train/eval splitting.",
     )
+    parser.add_argument(
+        "--moments_data_file",
+        type=str,
+        default=None,
+        help="Optional explicit MOMENTS CSV path. If omitted, uses data/<task>/<mode>_data.csv.",
+    )
     args = parser.parse_args()
     return args
 
@@ -238,6 +244,7 @@ def main():
         moments_cf_mode=args.moments_cf_mode,
         moments_max_images=args.moments_max_images,
         moments_total_prompt_count=args.moments_total_prompt_count,
+        moments_data_file=args.moments_data_file,
     )
 
     # Run node attribution patching on prompts or load pre-calculated results

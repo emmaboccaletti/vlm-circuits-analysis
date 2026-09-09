@@ -20,6 +20,12 @@ def parse_args():
     parser.add_argument("--ap_ig_steps", type=int, default=5)
     parser.add_argument("--percentages", nargs="+", type=float, default=[0.3, 0.5, 0.9])
     parser.add_argument(
+        "--eval_prompt_index",
+        type=int,
+        default=None,
+        help="Evaluate only this zero-based evaluation-prompt index.",
+    )
+    parser.add_argument(
         "--output_csv",
         default="data/moments_goal/results/qwen2-7b-vl-instruct/language_only_ld_baselines.csv",
     )
@@ -50,6 +56,12 @@ def main():
         train_test_split_ratio=0.75,
         moments_cf_mode="language_only",
     )
+    if args.eval_prompt_index is not None:
+        if not 0 <= args.eval_prompt_index < len(eval_prompts):
+            raise ValueError(
+                f"eval_prompt_index must be in [0, {len(eval_prompts) - 1}]"
+            )
+        eval_prompts = [eval_prompts[args.eval_prompt_index]]
 
     scores_path = Path(
         f"data/moments_goal/results/{args.model_name}/node_scores/"

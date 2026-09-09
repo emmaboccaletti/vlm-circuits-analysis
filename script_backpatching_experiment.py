@@ -395,6 +395,12 @@ def parse_args():
             "the legacy shared result path when omitted."
         ),
     )
+    parser.add_argument(
+        "--moments_data_file",
+        type=str,
+        default=None,
+        help="Optional explicit MOMENTS CSV path. If omitted, uses data/<task>/<mode>_data.csv.",
+    )
 
     args = parser.parse_args()
     return args
@@ -439,6 +445,7 @@ def main():
         correct_preds_only=False,  # Important because we don't want to have 100% accuracy, but instead want to be able to improve it
         train_test_split_ratio=0.5,  # Doesn't matter, we don't split to discovery and test here
         moments_cf_mode=args.moments_cf_mode,
+        moments_data_file=args.moments_data_file,
     )[0]
     l_prompts = get_parallel_l_prompts(vl_prompts, processor, args.task_name, args.seed)
     logging.info(f"Loaded {len(vl_prompts)} VL prompts and {len(l_prompts)} L prompts")

@@ -78,6 +78,12 @@ def parse_args():
             "shared result path when omitted."
         ),
     )
+    parser.add_argument(
+        "--moments_data_file",
+        type=str,
+        default=None,
+        help="Optional explicit MOMENTS CSV path. If omitted, uses data/<task>/<mode>_data.csv.",
+    )
     args = parser.parse_args()
     return args
 
@@ -551,6 +557,7 @@ def main():
         seed=args.seed,
         train_test_split_ratio=DISCOVERY_EVAL_SPLIT_PERCENT,
         moments_cf_mode=args.moments_cf_mode,
+        moments_data_file=args.moments_data_file,
     )[0]
     l_prompts = load_dataset(
         model=model,
@@ -561,6 +568,7 @@ def main():
         seed=args.seed,
         train_test_split_ratio=DISCOVERY_EVAL_SPLIT_PERCENT,
         moments_cf_mode=args.moments_cf_mode,
+        moments_data_file=args.moments_data_file,
     )[0]
 
     # Analyze the intersection of heads and neurons per percentage of components

@@ -55,6 +55,7 @@ def load_l_vl_datasets(model, processor, args):
         seed=args.seed,
         train_test_split_ratio=DISCOVERY_EVAL_SPLIT_PERCENT,
         moments_cf_mode=args.moments_cf_mode,
+        moments_data_file=args.moments_data_file,
     )
     _, __, eval_vl_prompts = load_dataset(
         model=model,
@@ -65,6 +66,7 @@ def load_l_vl_datasets(model, processor, args):
         seed=args.seed,
         train_test_split_ratio=DISCOVERY_EVAL_SPLIT_PERCENT,
         moments_cf_mode=args.moments_cf_mode,
+        moments_data_file=args.moments_data_file,
     )
     return eval_l_prompts, eval_vl_prompts
 
@@ -487,6 +489,12 @@ def parse_args():
             "Path to the cross-modality faithfulness output file. Defaults to "
             "the legacy shared result path when omitted."
         ),
+    )
+    parser.add_argument(
+        "--moments_data_file",
+        type=str,
+        default=None,
+        help="Optional explicit MOMENTS CSV path. If omitted, uses data/<task>/<mode>_data.csv.",
     )
     parser.add_argument(
         "--l_circuit_percentage",

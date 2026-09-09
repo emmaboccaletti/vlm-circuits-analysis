@@ -280,6 +280,7 @@ def load_dataset(
     moments_cf_mode: str = "vision_only",
     moments_max_images: int | None = None,
     moments_total_prompt_count: int | None = None,
+    moments_data_file: str | None = None,
 ):
     """
     Loads a dataset of correctly-completed prompts for a given model and task.
@@ -301,7 +302,7 @@ def load_dataset(
     # Create / Load the base dataset
     model_name_fs = model_name.replace("/", "__")
     if task_name.lower().startswith("moments_"):
-        data_path = f"./data/{task_name}/{moments_cf_mode}_data.csv"
+        data_path = moments_data_file or f"./data/{task_name}/{moments_cf_mode}_data.csv"
     else:
         data_path = f"./data/{task_name}/{model_name_fs}_{'textual' if language_only else 'visual'}_data.csv"
     print(f"This is the data I am using: {data_path}")
