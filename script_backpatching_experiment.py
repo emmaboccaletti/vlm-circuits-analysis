@@ -392,7 +392,7 @@ def parse_args():
         default=None,
         help=(
             "Directory in which to store backpatching_results.pt. Defaults to "
-            "the legacy shared result path when omitted."
+            "the basic shared result path when omitted."
         ),
     )
     parser.add_argument(

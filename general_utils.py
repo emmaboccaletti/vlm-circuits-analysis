@@ -210,8 +210,17 @@ def balanced_answers_train_test_split(
 
     # The train split might be too small due to per-answer-split rounding down
     # so move a few prompts from test to train
-    while len(train_prompts) < int(train_test_split_ratio * target_total_prompt_count):
+    target_train_count = int(train_test_split_ratio * target_total_prompt_count)
+    while len(train_prompts) < target_train_count and test_prompts:
         train_prompts.append(test_prompts.pop())
+
+    # Small or imbalanced datasets can leave the per-answer split with no
+    # evaluation prompts available for the rounding correction above.
+    if len(train_prompts) < target_train_count:
+        random.shuffle(subset)
+        target_train_count = min(target_train_count, len(subset) - 1)
+        train_prompts = subset[:target_train_count]
+        test_prompts = subset[target_train_count:]
 
     return train_prompts, test_prompts
 

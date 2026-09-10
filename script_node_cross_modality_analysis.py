@@ -487,7 +487,7 @@ def parse_args():
         default=None,
         help=(
             "Path to the cross-modality faithfulness output file. Defaults to "
-            "the legacy shared result path when omitted."
+            "the basic shared result path when omitted."
         ),
     )
     parser.add_argument(

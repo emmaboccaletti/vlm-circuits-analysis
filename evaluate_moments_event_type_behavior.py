@@ -32,6 +32,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--model_name", default="qwen2-7b-vl-instruct")
     parser.add_argument("--model_path", required=True)
     parser.add_argument(
+            "--torch_dtype",
+            default="float32",
+            choices=["float32", "float16", "bfloat16"],
+            help="Torch dtype used when loading the model.",
+        )
+    parser.add_argument(
         "--csv",
         default="data/moments_goal/vision_only_data.csv",
         help="CSV providing clean prompts, images, and event_type labels.",

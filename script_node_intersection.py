@@ -74,7 +74,7 @@ def parse_args():
         type=str,
         default=None,
         help=(
-            "Path to the intersection output file. Defaults to the legacy "
+            "Path to the intersection output file. Defaults to the basic "
             "shared result path when omitted."
         ),
     )
